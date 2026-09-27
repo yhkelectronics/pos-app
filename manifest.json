@@ -1,7 +1,6 @@
 {
   "name": "ESP POS",
   "short_name": "POS App",
-  "id": "/index.html",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -22,20 +21,6 @@
       "purpose": "any maskable"
     }
   ],
-"screenshots": [
-  {
-    "src": "screenshot1.jpg",
-    "sizes": "1159x2576",
-    "type": "image/jpeg",
-    "form_factor": "narrow",
-    "label": "ရောင်းချရေးဆိုင် POS - ကုန်ပစ္စည်းစာရင်း"
-  },
-  {
-    "src": "screenshot2.jpg",
-    "sizes": "1159x2576",
-    "type": "image/jpeg",
-    "form_factor": "narrow",
-    "label": "ရောင်းချရေးဆိုင် POS - အစီရင်ခံစာ"
-  }
-],
-  "description": "ငွေတောင်းခံလွှာ၊ ကုန်ပစ္စည်းစာရင်း၊ ရောင်းအား မှတ်တမ်းများကို အလွယ်တကူ စီမံခန့်ခွဲနိုင်သော ရောင်းချရေးဆိုင် POS အက်ပ်၊ Offline အသုံးပြုနိုင်သည်"
+  "description": "\"ငွေတောင်းခံလွှာ၊ ကုန်ပစ္စည်းစာရင်း၊ ရောင်းအား မှတ်တမ်းများကို အလွယ်တကူ စီမံခန့်ခွဲနိုင်သော ရောင်းချရေးဆိုင် POS အက်ပ်\", \" Offline အသုံးပြုနိုင်သည် \"",
+  "id": "\"/index.html"
+}
