@@ -1,6 +1,7 @@
 {
   "name": "ESP POS",
   "short_name": "POS App",
+  "id": "/index.html",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
