@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ရောင်းချရေးဆိုင်</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#2F6F63">
+<link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg:#F6F4EF; --card:#FFFFFF; --ink:#1F2A24; --sub:#6B6459;
+  --teal:#2F6F63; --teal-d:#234F46; --amber:#C97B2E; --danger:#B3452C;
+  --line:#E7E2D6;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181A17; --card:#232620; --ink:#EDEAE1; --sub:#A6A093;
+    --teal:#4FA38F; --teal-d:#3C8674; --amber:#E0994A; --line:#33362E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#181A17; --card:#232620; --ink:#EDEAE1; --sub:#A6A093;
+  --teal:#4FA38F; --teal-d:#3C8674; --amber:#E0994A; --line:#33362E;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Padauk',sans-serif; font-size:16px; line-height:1.5;
+  display:flex; flex-direction:column;
+}
+h1,h2,h3{margin:0; font-weight:700;}
+button{font-family:inherit; cursor:pointer;}
+input,select{font-family:inherit;}
+
+header{
+  padding:14px 16px calc(10px + env(safe-area-inset-top,0px));
+  padding-top:calc(14px + env(safe-area-inset-top,0px));
+  background:var(--teal); color:#fff;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:5;
+}
+header input{
+  background:transparent; border:none; color:#fff; font-size:18px; font-weight:700;
+  font-family:inherit; max-width:60%;
+}
+header input:focus{outline:1px solid rgba(255,255,255,.5); border-radius:4px;}
+.settings-btn{background:transparent; border:none; color:#fff; font-size:19px; flex-shrink:0; padding:4px;}
+
+.cart-review{display:flex; flex-direction:column; gap:8px; margin-bottom:6px;}
+.cart-row{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; padding:6px 0; border-bottom:1px dashed var(--line);}
+.cart-row .cn{font-weight:700;}
+.cart-row .cu{color:var(--sub); font-size:12px;}
+.cart-row .clt{color:var(--amber); font-weight:700; white-space:nowrap;}
+.section-label{font-size:13px; color:var(--sub); margin:14px 0 6px;}
+
+main{flex:1; overflow-y:auto; padding:14px 14px 90px;}
+.screen{display:none;}
+.screen.active{display:block;}
+
+.search{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--card); color:var(--ink); font-size:15px; margin-bottom:12px;
+}
+
+.plist{display:flex; flex-direction:column; gap:8px;}
+.pitem{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:10px 12px; display:flex; justify-content:space-between; align-items:center;
+  gap:10px;
+}
+.pitem .name{font-weight:700;}
+.pitem .stock{font-size:12px; color:var(--sub);}
+.pitem .price{color:var(--amber); font-weight:700; white-space:nowrap;}
+.pitem button{
+  background:var(--teal); color:#fff; border:none; border-radius:8px;
+  width:34px; height:34px; font-size:18px; flex-shrink:0;
+}
+.pitem button:disabled{background:var(--line); color:var(--sub);}
+
+.empty{text-align:center; color:var(--sub); padding:40px 10px;}
+
+.cart-bar{
+  position:fixed; left:0; right:0; bottom:56px;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+  background:var(--card); border-top:1px solid var(--line);
+  display:none; justify-content:space-between; align-items:center; gap:10px;
+}
+.cart-bar.show{display:flex;}
+.cart-bar .info{font-size:14px;}
+.cart-bar .info b{color:var(--amber); font-size:17px;}
+.cart-bar button{
+  background:var(--teal); color:#fff; border:none; border-radius:10px;
+  padding:10px 18px; font-weight:700; font-size:15px;
+}
+
+nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:6;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  background:var(--card); border-top:1px solid var(--line);
+  display:flex;
+}
+nav button{
+  flex:1; background:none; border:none; padding:9px 0 8px; color:var(--sub);
+  font-size:12px; display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+nav button .ic{font-size:20px;}
+nav button.active{color:var(--teal);}
+
+.fab{
+  position:fixed; right:16px; bottom:calc(70px + env(safe-area-inset-bottom,0px));
+  width:48px; height:48px; border-radius:50%; background:var(--amber); color:#fff;
+  border:none; font-size:24px; box-shadow:0 3px 10px rgba(0,0,0,.25); z-index:5;
+}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;}
+.row{display:flex; justify-content:space-between; padding:7px 0; font-size:15px;}
+.row.total{border-top:1px solid var(--line); margin-top:4px; padding-top:10px; font-weight:700; font-size:17px;}
+.row .v{color:var(--amber); font-weight:700;}
+.row .v.profit{color:var(--teal);}
+
+.sale-log{display:flex; flex-direction:column; gap:8px; margin-top:14px;}
+.sale-item{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px;}
+.sale-item .top{display:flex; justify-content:space-between; font-weight:700;}
+.sale-item .sub{font-size:12px; color:var(--sub); margin-top:2px;}
+
+/* modal */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.5); display:none;
+  align-items:flex-end; justify-content:center; z-index:20;
+}
+.overlay.show{display:flex;}
+.sheet{
+  background:var(--card); width:100%; max-width:480px; border-radius:16px 16px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px)); max-height:88vh; overflow-y:auto;
+}
+.sheet h2{margin-bottom:12px; font-size:18px;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:13px; color:var(--sub); margin-bottom:4px;}
+.field input{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--bg); color:var(--ink); font-size:15px;
+}
+.sheet .actions{display:flex; gap:10px; margin-top:6px;}
+.sheet .actions button{flex:1; padding:11px; border-radius:10px; border:none; font-weight:700; font-size:15px;}
+.btn-primary{background:var(--teal); color:#fff;}
+.btn-danger{background:transparent; color:var(--danger); border:1px solid var(--danger) !important;}
+.btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line) !important;}
+
+/* receipt */
+#receiptRender{
+  position:fixed; left:-9999px; top:0; width:340px; background:#fff; color:#1a1a1a;
+  font-family:'Padauk',sans-serif; padding:18px;
+}
+#receiptRender h3{text-align:center; margin-bottom:2px;}
+#receiptRender .sub{text-align:center; font-size:12px; color:#666; margin-bottom:10px;}
+#receiptRender table{width:100%; border-collapse:collapse; font-size:13px;}
+#receiptRender th{text-align:left; border-bottom:1px solid #ccc; padding:4px 2px; font-size:12px;}
+#receiptRender td{padding:4px 2px; border-bottom:1px dashed #ddd;}
+#receiptRender .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:10px; font-size:15px;}
+#receiptRender .foot{text-align:center; font-size:11px; color:#888; margin-top:14px;}
+#receiptRender .foot-date{text-align:left; font-size:11px; color:#888; margin-top:6px;}
+.receipt-preview img{width:100%; border-radius:10px; border:1px solid var(--line);}
+
+#printReceipt{display:none;}
+#printReceipt.rawbt-mode{font-size:26px;}
+#printReceipt.rawbt-mode h3{font-size:36px; margin:0 0 6px; text-align:center;}
+#printReceipt.rawbt-mode .sub{font-size:22px; text-align:center; margin-bottom:8px;}
+#printReceipt.rawbt-mode table{width:100%; border-collapse:collapse; font-size:19px; table-layout:fixed;}
+#printReceipt.rawbt-mode th{text-align:left; border-bottom:3px solid #000; padding:5px 2px; font-size:16px; word-break:keep-all; white-space:nowrap;}
+#printReceipt.rawbt-mode td{padding:5px 2px; border-bottom:2px dashed #444; overflow-wrap:break-word;}
+#printReceipt.rawbt-mode th:first-child, #printReceipt.rawbt-mode td:first-child{width:34%;}
+#printReceipt.rawbt-mode .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:14px; font-size:28px;}
+#printReceipt.rawbt-mode .foot{text-align:center; font-size:20px; margin-top:18px; line-height:1.6;}
+#printReceipt.rawbt-mode .foot-date{text-align:left; font-size:18px; margin-top:8px;}
+@media print{
+  body *{visibility:hidden;}
+  #printReceipt, #printReceipt *{visibility:visible;}
+  #printReceipt{
+    display:block !important; position:absolute; left:0; top:0; width:76mm;
+    padding:2mm; font-family:'Padauk',sans-serif; font-size:12px; color:#000; background:#fff;
+  }
+  #printReceipt h3{text-align:center; margin:0 0 2px; font-size:15px;}
+  #printReceipt .sub{text-align:center; font-size:11px; color:#333; margin-bottom:6px;}
+  #printReceipt table{width:100%; border-collapse:collapse; font-size:11px;}
+  #printReceipt th{text-align:left; border-bottom:1px solid #000; padding:3px 1px;}
+  #printReceipt td{padding:3px 1px; border-bottom:1px dashed #999;}
+  #printReceipt .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:8px; font-size:13px;}
+  #printReceipt .foot{text-align:center; font-size:11px; margin-top:10px;}
+  #printReceipt .foot-date{text-align:left; font-size:11px; margin-top:4px;}
+  @page{ size: 80mm auto; margin:0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <input id="shopName" value="ကျွန်တော့်ဆိုင်" />
+  <button id="shopSettingsBtn" class="settings-btn" title="ဆိုင်အချက်အလက်">⚙️</button>
+</header>
+
+<main>
+  <!-- SELL SCREEN -->
+  <section class="screen active" id="screen-sell">
+    <input class="search" id="sellSearch" placeholder="ပစ္စည်းရှာရန်...">
+    <select class="search" id="sellCatFilter" style="margin-top:-4px;"><option value="">Category အားလုံး</option></select>
+    <div class="plist" id="sellList"></div>
+  </section>
+
+  <!-- PRODUCTS SCREEN -->
+  <section class="screen" id="screen-products">
+    <input class="search" id="prodSearch" placeholder="ပစ္စည်းရှာရန်...">
+    <select class="search" id="prodCatFilter" style="margin-top:-4px;"><option value="">Category အားလုံး</option></select>
+    <div class="plist" id="prodList"></div>
+  </section>
+
+  <!-- REPORT SCREEN -->
+  <section class="screen" id="screen-report">
+    <div class="card" id="reportSummary"></div>
+    <h3 style="font-size:14px;color:var(--sub);margin:4px 2px;">ရောင်းချမှုမှတ်တမ်း</h3>
+    <div class="sale-log" id="saleLog"></div>
+  </section>
+</main>
+
+<div class="cart-bar" id="cartBar">
+  <div class="info">ခြင်းတောင်း <span id="cartCount">0</span> ခု — <b id="cartTotal">0</b> ကျပ်</div>
+  <button id="checkoutBtn">ရောင်းမည်</button>
+</div>
+
+<button class="fab" id="addProductFab" title="ပစ္စည်းအသစ်ထည့်ရန်">+</button>
+
+<nav>
+  <button class="tab active" data-screen="sell"><span class="ic">🛒</span>ရောင်းရန်</button>
+  <button class="tab" data-screen="products"><span class="ic">📦</span>ပစ္စည်း</button>
+  <button class="tab" data-screen="report"><span class="ic">📊</span>အစီရင်ခံစာ</button>
+</nav>
+
+<!-- Product add/edit modal -->
+<div class="overlay" id="prodOverlay">
+  <div class="sheet">
+    <h2 id="prodFormTitle">ပစ္စည်းအသစ်ထည့်ရန်</h2>
+    <div class="field"><label>ပစ္စည်းအမည်</label><input id="fName" placeholder="ဥပမာ - ကော်ဖီမစ်"></div>
+    <div class="field"><label>Category</label><input id="fCategory" list="catList" placeholder="ဥပမာ - အချိုရည်"><datalist id="catList"></datalist></div>
+    <div class="field"><label>ဝယ်ဈေး (ကျပ်)</label><input id="fBuy" type="number" inputmode="numeric" placeholder="0"></div>
+    <div class="field"><label>ရောင်းဈေး (ကျပ်)</label><input id="fSell" type="number" inputmode="numeric" placeholder="0"></div>
+    <div class="field"><label>လက်ကျန်အရေအတွက်</label><input id="fStock" type="number" inputmode="numeric" placeholder="0"></div>
+    <div class="actions">
+      <button class="btn-ghost" id="prodCancel">ပယ်ဖျက်</button>
+      <button class="btn-danger" id="prodDelete" style="display:none">ဖျက်မည်</button>
+      <button class="btn-primary" id="prodSave">သိမ်းမည်</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shop settings modal -->
+<div class="overlay" id="shopOverlay">
+  <div class="sheet">
+    <h2>ဆိုင်အချက်အလက်</h2>
+    <div class="field"><label>ဖုန်းနံပါတ်</label><input id="fShopPhone" type="tel" placeholder="09xxxxxxxxx"></div>
+    <div class="field"><label>လိပ်စာ</label><input id="fShopAddr" placeholder="ဆိုင်လိပ်စာ"></div>
+    <div class="field"><label>ဘောင်ချာအောက်ခံစာ</label><input id="fThankYou" placeholder="ဝယ်ယူမှုအတွက် ကျေးဇူးတင်ပါသည် 🙏"></div>
+    <div class="actions">
+      <button class="btn-ghost" id="shopCancel">ပိတ်မည်</button>
+      <button class="btn-primary" id="shopSave">သိမ်းမည်</button>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout modal -->
+<div class="overlay" id="checkoutOverlay">
+  <div class="sheet">
+    <h2>ရောင်းချခြင်းအတည်ပြုရန်</h2>
+    <div class="cart-review" id="checkoutItems"></div>
+    <div class="row total"><span>စုစုပေါင်း</span><span class="v" id="checkoutTotal">0</span></div>
+    <div class="section-label">Customer အချက်အလက် (မဖြည့်လည်းရ)</div>
+    <div class="field"><label>Customer Name</label><input id="fCustName" placeholder="ဖောက်သည်အမည်"></div>
+    <div class="field"><label>Customer Phone</label><input id="fCustPhone" type="tel" placeholder="ဖောက်သည်ဖုန်း"></div>
+    <div class="field"><label>Customer Address</label><input id="fCustAddr" placeholder="ဖောက်သည်လိပ်စာ"></div>
+    <div class="actions">
+      <button class="btn-ghost" id="checkoutCancel">ပယ်ဖျက်</button>
+      <button class="btn-primary" id="checkoutConfirm">အတည်ပြု ရောင်းမည်</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt modal -->
+<div class="overlay" id="receiptOverlay">
+  <div class="sheet">
+    <h2>ဘောင်ချာ</h2>
+    <div class="receipt-preview"><img id="receiptImg" alt="receipt"></div>
+    <div class="actions">
+      <button class="btn-ghost" id="receiptClose">ပိတ်မည်</button>
+      <button class="btn-primary" id="receiptPrint" style="background:var(--amber);">🖨️ RawBT ဖြင့် Print</button>
+    </div>
+    <div class="actions" style="margin-top:8px;">
+      <a class="btn-ghost" id="receiptDownload" download="receipt.png" style="text-decoration:none;text-align:center;padding:11px;border-radius:10px;">ဓာတ်ပုံသိမ်းမည်</a>
+      <button class="btn-ghost" id="receiptPrintFallback">System Print (အခြားနည်း)</button>
+    </div>
+  </div>
+</div>
+
+<!-- hidden receipt render target -->
+<div id="receiptRender">
+  <h3 id="rShop"></h3>
+  <div class="sub" id="rShopContact"></div>
+  <div class="sub" id="rCustomer" style="text-align:left;color:#333;"></div>
+  <table>
+    <thead><tr><th>ပစ္စည်း</th><th style="text-align:center">အရေအတွက်</th><th style="text-align:right">တစ်ခုစျေး</th><th style="text-align:right">စုစုပေါင်း</th></tr></thead>
+    <tbody id="rBody"></tbody>
+  </table>
+  <div class="tot"><span>စုစုပေါင်း</span><span id="rTotal"></span></div>
+  <div class="foot" id="rThanks"></div>
+  <div class="foot-date" id="rDate"></div>
+</div>
+
+<div id="printReceipt"></div>
+
+<script>
+const LS_PRODUCTS='pos_products', LS_SALES='pos_sales', LS_SHOP='pos_shop', LS_PHONE='pos_shop_phone', LS_ADDR='pos_shop_addr', LS_THANKS='pos_shop_thanks';
+const DEFAULT_THANKS = 'ဝယ်ယူမှုအတွက် ကျေးဇူးတင်ပါသည် 🙏';
+let products = JSON.parse(localStorage.getItem(LS_PRODUCTS) || '[]');
+let sales = JSON.parse(localStorage.getItem(LS_SALES) || '[]');
+let cart = {}; // productId -> qty
+let editingId = null;
+
+const $ = s => document.querySelector(s);
+const fmt = n => Number(n||0).toLocaleString('en-US');
+
+function save(){
+  localStorage.setItem(LS_PRODUCTS, JSON.stringify(products));
+  localStorage.setItem(LS_SALES, JSON.stringify(sales));
+}
+
+// shop name (local storage only — no login/account needed, works fully offline)
+$('#shopName').value = localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်';
+$('#shopName').addEventListener('change', e=>localStorage.setItem(LS_SHOP, e.target.value));
+
+// shop settings (phone / address / thank-you message)
+$('#shopSettingsBtn').addEventListener('click', ()=>{
+  $('#fShopPhone').value = localStorage.getItem(LS_PHONE) || '';
+  $('#fShopAddr').value = localStorage.getItem(LS_ADDR) || '';
+  $('#fThankYou').value = localStorage.getItem(LS_THANKS) || DEFAULT_THANKS;
+  $('#shopOverlay').classList.add('show');
+});
+$('#shopCancel').addEventListener('click', ()=>$('#shopOverlay').classList.remove('show'));
+$('#shopSave').addEventListener('click', ()=>{
+  localStorage.setItem(LS_PHONE, $('#fShopPhone').value.trim());
+  localStorage.setItem(LS_ADDR, $('#fShopAddr').value.trim());
+  localStorage.setItem(LS_THANKS, $('#fThankYou').value.trim() || DEFAULT_THANKS);
+  $('#shopOverlay').classList.remove('show');
+});
+
+// ---- Navigation ----
+document.querySelectorAll('nav .tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav .tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    $('#screen-'+btn.dataset.screen).classList.add('active');
+    $('#addProductFab').style.display = btn.dataset.screen==='products' ? 'block':'none';
+    if(btn.dataset.screen==='report') renderReport();
+  });
+});
+$('#addProductFab').style.display='none';
+
+// ---- Categories ----
+function allCategories(){
+  return [...new Set(products.map(p=>(p.category||'').trim()).filter(Boolean))].sort();
+}
+function refreshCategoryUI(){
+  const cats = allCategories();
+  const opts = cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('#catList').innerHTML = opts;
+  ['#sellCatFilter','#prodCatFilter'].forEach(sel=>{
+    const el = $(sel); const cur = el.value;
+    el.innerHTML = '<option value="">Category အားလုံး</option>'+opts;
+    if(cats.includes(cur)) el.value = cur;
+  });
+}
+
+// ---- Render sell list ----
+function renderSellList(){
+  const q = $('#sellSearch').value.trim().toLowerCase();
+  const cat = $('#sellCatFilter').value;
+  const list = $('#sellList');
+  const items = products.filter(p=>p.name.toLowerCase().includes(q) && (!cat || p.category===cat));
+  if(items.length===0){ list.innerHTML = '<div class="empty">ပစ္စည်းမရှိသေးပါ။ "ပစ္စည်း" တွင်အရင်ထည့်ပါ</div>'; return; }
+  list.innerHTML = items.map(p=>{
+    const inCart = cart[p.id]||0;
+    const out = p.stock<=0;
+    return `<div class="pitem">
+      <div>
+        <div class="name">${esc(p.name)} ${p.category?`<span class="stock" style="color:var(--teal)">· ${esc(p.category)}</span>`:''}</div>
+        <div class="stock">လက်ကျန် ${p.stock} ${inCart?`· ခြင်းတောင်းထဲ ${inCart}`:''}</div>
+      </div>
+      <div class="price">${fmt(p.sellPrice)}</div>
+      <button data-id="${p.id}" class="addBtn" ${out?'disabled':''}>+</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.addBtn').forEach(b=>b.addEventListener('click', ()=>addToCart(b.dataset.id)));
+}
+$('#sellSearch').addEventListener('input', renderSellList);
+$('#sellCatFilter').addEventListener('change', renderSellList);
+
+function addToCart(id){
+  const p = products.find(x=>x.id===id);
+  const cur = cart[id]||0;
+  if(cur+1 > p.stock) return;
+  cart[id] = cur+1;
+  renderSellList(); renderCartBar();
+}
+
+function renderCartBar(){
+  const ids = Object.keys(cart).filter(k=>cart[k]>0);
+  const count = ids.reduce((s,k)=>s+cart[k],0);
+  const total = ids.reduce((s,k)=>{
+    const p = products.find(x=>x.id===k);
+    return s + (p ? p.sellPrice*cart[k] : 0);
+  },0);
+  $('#cartCount').textContent = count;
+  $('#cartTotal').textContent = fmt(total);
+  $('#cartBar').classList.toggle('show', count>0);
+}
+
+$('#checkoutBtn').addEventListener('click', ()=>{
+  const ids = Object.keys(cart).filter(k=>cart[k]>0);
+  if(ids.length===0) return;
+  const rows = ids.map(id=>{
+    const p = products.find(x=>x.id===id);
+    return {p, qty:cart[id]};
+  });
+  const total = rows.reduce((s,r)=>s+r.p.sellPrice*r.qty,0);
+  $('#checkoutItems').innerHTML = rows.map(r=>`
+    <div class="cart-row">
+      <div><div class="cn">${esc(r.p.name)}</div><div class="cu">${r.qty} × ${fmt(r.p.sellPrice)}</div></div>
+      <div class="clt">${fmt(r.p.sellPrice*r.qty)}</div>
+    </div>`).join('');
+  $('#checkoutTotal').textContent = fmt(total)+' ကျပ်';
+  $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value='';
+  $('#checkoutOverlay').classList.add('show');
+});
+$('#checkoutCancel').addEventListener('click', ()=>$('#checkoutOverlay').classList.remove('show'));
+
+$('#checkoutConfirm').addEventListener('click', ()=>{
+  const ids = Object.keys(cart).filter(k=>cart[k]>0);
+  if(ids.length===0) return;
+  const items = ids.map(id=>{
+    const p = products.find(x=>x.id===id);
+    p.stock -= cart[id];
+    return {name:p.name, qty:cart[id], price:p.sellPrice, buy:p.buyPrice};
+  });
+  const total = items.reduce((s,i)=>s+i.price*i.qty,0);
+  const cost = items.reduce((s,i)=>s+i.buy*i.qty,0);
+  const customer = {
+    name: $('#fCustName').value.trim(),
+    phone: $('#fCustPhone').value.trim(),
+    address: $('#fCustAddr').value.trim()
+  };
+  const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, total, cost, profit: total-cost, customer};
+  sales.unshift(sale);
+  save();
+  cart = {};
+  renderSellList(); renderCartBar();
+  $('#checkoutOverlay').classList.remove('show');
+  showReceipt(sale);
+});
+
+// ---- Products screen ----
+function renderProdList(){
+  const q = $('#prodSearch').value.trim().toLowerCase();
+  const cat = $('#prodCatFilter').value;
+  const list = $('#prodList');
+  const items = products.filter(p=>p.name.toLowerCase().includes(q) && (!cat || p.category===cat));
+  if(items.length===0){ list.innerHTML = '<div class="empty">ပစ္စည်းမရှိသေးပါ။ + ကိုနှိပ်ပြီးထည့်ပါ</div>'; return; }
+  list.innerHTML = items.map(p=>`
+    <div class="pitem" data-id="${p.id}">
+      <div>
+        <div class="name">${esc(p.name)} ${p.category?`<span class="stock" style="color:var(--teal)">· ${esc(p.category)}</span>`:''}</div>
+        <div class="stock">ဝယ် ${fmt(p.buyPrice)} · လက်ကျန် ${p.stock}</div>
+      </div>
+      <div class="price">${fmt(p.sellPrice)}</div>
+      <button class="editBtn">✎</button>
+    </div>`).join('');
+  list.querySelectorAll('.pitem').forEach(el=>el.addEventListener('click', ()=>openProdForm(el.dataset.id)));
+}
+$('#prodSearch').addEventListener('input', renderProdList);
+$('#prodCatFilter').addEventListener('change', renderProdList);
+
+function openProdForm(id){
+  editingId = id || null;
+  const p = id ? products.find(x=>x.id===id) : null;
+  $('#prodFormTitle').textContent = p ? 'ပစ္စည်းပြင်ရန်' : 'ပစ္စည်းအသစ်ထည့်ရန်';
+  $('#fName').value = p ? p.name : '';
+  $('#fCategory').value = p ? (p.category||'') : '';
+  $('#fBuy').value = p ? p.buyPrice : '';
+  $('#fSell').value = p ? p.sellPrice : '';
+  $('#fStock').value = p ? p.stock : '';
+  $('#prodDelete').style.display = p ? 'block' : 'none';
+  $('#prodOverlay').classList.add('show');
+}
+$('#addProductFab').addEventListener('click', ()=>openProdForm(null));
+$('#prodCancel').addEventListener('click', ()=>$('#prodOverlay').classList.remove('show'));
+$('#prodSave').addEventListener('click', ()=>{
+  const name = $('#fName').value.trim();
+  if(!name){ $('#fName').focus(); return; }
+  const category = $('#fCategory').value.trim();
+  const buy = Number($('#fBuy').value)||0;
+  const sell = Number($('#fSell').value)||0;
+  const stock = Number($('#fStock').value)||0;
+  let savedProduct;
+  if(editingId){
+    const p = products.find(x=>x.id===editingId);
+    Object.assign(p,{name,category,buyPrice:buy,sellPrice:sell,stock});
+    savedProduct = p;
+  } else {
+    savedProduct = {id:'p'+Date.now(), name, category, buyPrice:buy, sellPrice:sell, stock};
+    products.push(savedProduct);
+  }
+  save();
+  $('#prodOverlay').classList.remove('show');
+  refreshCategoryUI(); renderProdList(); renderSellList();
+});
+$('#prodDelete').addEventListener('click', ()=>{
+  if(!editingId) return;
+  products = products.filter(x=>x.id!==editingId);
+  save();
+  $('#prodOverlay').classList.remove('show');
+  refreshCategoryUI(); renderProdList(); renderSellList();
+});
+
+// ---- Report screen ----
+function renderReport(){
+  const totalSales = sales.reduce((s,x)=>s+x.total,0);
+  const totalCost = sales.reduce((s,x)=>s+x.cost,0);
+  const totalProfit = sales.reduce((s,x)=>s+x.profit,0);
+  $('#reportSummary').innerHTML = `
+    <div class="row"><span>စုစုပေါင်းအရောင်း</span><span class="v">${fmt(totalSales)} ကျပ်</span></div>
+    <div class="row"><span>စုစုပေါင်းအရင်း</span><span class="v">${fmt(totalCost)} ကျပ်</span></div>
+    <div class="row total"><span>စုစုပေါင်းအမြတ်</span><span class="v profit">${fmt(totalProfit)} ကျပ်</span></div>`;
+  const log = $('#saleLog');
+  if(sales.length===0){ log.innerHTML='<div class="empty">ရောင်းချမှုမှတ်တမ်းမရှိသေးပါ</div>'; return; }
+  log.innerHTML = sales.slice(0,50).map(s=>{
+    const d = new Date(s.date);
+    return `<div class="sale-item">
+      <div class="top"><span>${fmt(s.total)} ကျပ်</span><span style="color:var(--teal)">+${fmt(s.profit)}</span></div>
+      <div class="sub">${d.toLocaleDateString('my-MM')} ${d.toLocaleTimeString('my-MM',{hour:'2-digit',minute:'2-digit'})} · ${s.items.length} မျိုး${(s.customer&&s.customer.name)?(' · '+esc(s.customer.name)):''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Receipt image + print ----
+let lastSale = null;
+function receiptHtmlParts(sale){
+  const shop = localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်';
+  const phone = localStorage.getItem(LS_PHONE) || '';
+  const addr = localStorage.getItem(LS_ADDR) || '';
+  const c = sale.customer || {};
+  const custLines = [];
+  if(c.name) custLines.push('Customer: '+c.name);
+  if(c.phone) custLines.push('Phone: '+c.phone);
+  if(c.address) custLines.push('Address: '+c.address);
+  const rows = sale.items.map(i=>`<tr><td>${esc(i.name)}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmt(i.price)}</td><td style="text-align:right">${fmt(i.price*i.qty)}</td></tr>`).join('');
+  const thanks = localStorage.getItem(LS_THANKS) || DEFAULT_THANKS;
+  return {shop, contact:[addr,phone].filter(Boolean).join(' · '), custHtml:custLines.map(esc).join('<br>'), rows, dateStr:new Date(sale.date).toLocaleString('my-MM'), thanks};
+}
+
+async function showReceipt(sale){
+  lastSale = sale;
+  const r = receiptHtmlParts(sale);
+  $('#rShop').textContent = r.shop;
+  $('#rShopContact').textContent = r.contact;
+  $('#rShopContact').style.display = r.contact ? 'block':'none';
+  $('#rCustomer').innerHTML = r.custHtml;
+  $('#rCustomer').style.display = r.custHtml ? 'block':'none';
+  $('#rBody').innerHTML = r.rows;
+  $('#rTotal').textContent = fmt(sale.total)+' ကျပ်';
+  $('#rThanks').textContent = r.thanks;
+  $('#rDate').textContent = r.dateStr;
+  try{
+    const canvas = await html2canvas(document.getElementById('receiptRender'), {backgroundColor:'#fff', scale:2});
+    const url = canvas.toDataURL('image/png');
+    $('#receiptImg').src = url;
+    $('#receiptDownload').href = url;
+    $('#receiptOverlay').classList.add('show');
+  }catch(e){
+    alert('ဘောင်ချာပုံဖန်တီးရာတွင် အမှားရှိပါသည်');
+  }
+}
+
+function printReceiptHTML(sale){
+  const r = receiptHtmlParts(sale);
+  return `
+    <h3>${esc(r.shop)}</h3>
+    ${r.contact?`<div class="sub">${esc(r.contact)}</div>`:''}
+    ${r.custHtml?`<div class="sub" style="text-align:left">${r.custHtml}</div>`:''}
+    <table><thead><tr><th>ပစ္စည်း</th><th style="text-align:center">အရေအတွက်</th><th style="text-align:right">တစ်ခုစျေး</th><th style="text-align:right">စုစုပေါင်း</th></tr></thead>
+    <tbody>${r.rows}</tbody></table>
+    <div class="tot"><span>စုစုပေါင်း</span><span>${fmt(sale.total)} ကျပ်</span></div>
+    <div class="foot">${esc(r.thanks)}</div>
+    <div class="foot-date">${r.dateStr}</div>`;
+}
+
+// System print dialog fallback (works only if the page is open in a real
+// mobile browser, and only prints correctly if the OS/printer's own print
+// service is set up — RawBT below is the reliable path for AP-P80F)
+function printReceiptSystemDialog(sale){
+  $('#printReceipt').classList.remove('rawbt-mode');
+  $('#printReceipt').style.cssText = '';
+  $('#printReceipt').innerHTML = printReceiptHTML(sale);
+  window.print();
+}
+$('#receiptPrintFallback').addEventListener('click', ()=>{ if(lastSale) printReceiptSystemDialog(lastSale); });
+
+// ---- RawBT direct Bluetooth print (bypasses the print dialog entirely) ----
+// Renders the receipt as a bitmap (so Myanmar text always prints correctly,
+// since most thermal printers have no built-in Myanmar font) and sends it
+// straight to RawBT as raw ESC/POS raster data.
+function buildEscPosFromCanvas(canvas){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const bytesPerLine = Math.ceil(w/8);
+  const img = ctx.getImageData(0,0,w,h).data;
+  const chunk = 256;
+  const parts = [new Uint8Array([0x1B,0x40])]; // ESC @ initialize
+  for(let y0=0; y0<h; y0+=chunk){
+    const rows = Math.min(chunk, h-y0);
+    const bitmap = new Uint8Array(bytesPerLine*rows);
+    for(let ry=0; ry<rows; ry++){
+      const y = y0+ry;
+      for(let x=0; x<w; x++){
+        const idx = (y*w+x)*4;
+        const a = img[idx+3];
+        const gray = img[idx]*0.299 + img[idx+1]*0.587 + img[idx+2]*0.114;
+        if(a>10 && gray<180){
+          const bi = ry*bytesPerLine + (x>>3);
+          bitmap[bi] |= (1<<(7-(x%8)));
+        }
+      }
+    }
+    const xL=bytesPerLine&0xFF, xH=(bytesPerLine>>8)&0xFF, yL=rows&0xFF, yH=(rows>>8)&0xFF;
+    parts.push(new Uint8Array([0x1D,0x76,0x30,0x00,xL,xH,yL,yH]));
+    parts.push(bitmap);
+  }
+  parts.push(new Uint8Array([0x0A,0x0A,0x0A,0x0A])); // feed paper for tear-off
+  const total = parts.reduce((s,p)=>s+p.length,0);
+  const out = new Uint8Array(total);
+  let off=0; for(const p of parts){ out.set(p,off); off+=p.length; }
+  return out;
+}
+function uint8ToBase64(bytes){
+  let binary='';
+  const chunkSize=0x8000;
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
+  }
+  return btoa(binary);
+}
+async function printViaRawBT(sale){
+  const el = $('#printReceipt');
+  el.innerHTML = printReceiptHTML(sale);
+  el.classList.add('rawbt-mode');
+  el.style.cssText = 'display:block; position:fixed; left:-9999px; top:0; width:576px; background:#fff; color:#000; padding:16px;';
+  await new Promise(res=>setTimeout(res,60));
+  try{
+    const canvas = await html2canvas(el, {backgroundColor:'#fff', scale:1});
+    const bytes = buildEscPosFromCanvas(canvas);
+    const b64 = uint8ToBase64(bytes);
+    window.location.href = 'intent:base64,'+b64+'#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+  }catch(e){
+    alert('Print ပို့ရာတွင် အမှားရှိပါသည်။ RawBT app ကို install ထားပြီး AP-P80F ကို RawBT ထဲက printer စာရင်းမှာ ရွေးထားကြောင်း စစ်ပေးပါ။');
+  }
+  el.classList.remove('rawbt-mode');
+  el.style.cssText = '';
+}
+$('#receiptPrint').addEventListener('click', ()=>{ if(lastSale) printViaRawBT(lastSale); });
+$('#receiptClose').addEventListener('click', ()=>$('#receiptOverlay').classList.remove('show'));
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// seed sample data if empty
+if(products.length===0){
+  products = [
+    {id:'p1', name:'ကော်ဖီမစ်', buyPrice:1500, sellPrice:2500, stock:20},
+    {id:'p2', name:'ရေသန့်ပုလင်း', buyPrice:300, sellPrice:500, stock:50},
+    {id:'p3', name:'ဘီစကွတ်', buyPrice:800, sellPrice:1200, stock:15},
+  ];
+  save();
+}
+
+refreshCategoryUI();
+renderSellList();
+renderProdList();
+renderReport();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

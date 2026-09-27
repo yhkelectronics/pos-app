@@ -1,0 +1,14 @@
+{
+  "name": "ရောင်းချရေးဆိုင် POS",
+  "short_name": "POS App",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F6F4EF",
+  "theme_color": "#2F6F63",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
