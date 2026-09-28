@@ -10,6 +10,10 @@
 <meta name="theme-color" content="#2F6F63">
 <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#F6F4EF; --card:#FFFFFF; --ink:#1F2A24; --sub:#6B6459;
@@ -152,6 +156,10 @@ nav button.active{color:var(--teal);}
   width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
   background:var(--bg); color:var(--ink); font-size:14px; font-family:inherit; resize:vertical;
 }
+#loginOverlay{background:var(--bg); align-items:center; z-index:50;}
+#loginOverlay .sheet{border-radius:16px; max-width:400px; margin:0 14px; border:1px solid var(--line);}
+.login-err{color:var(--danger); font-size:13px; min-height:18px; margin:2px 0 8px;}
+.link-btn{background:none; border:none; color:var(--teal); font-size:13px; padding:8px 0; text-decoration:underline;}
 .sheet .actions{display:flex; gap:10px; margin-top:6px;}
 .sheet .actions button{flex:1; padding:11px; border-radius:10px; border:none; font-weight:700; font-size:15px;}
 .btn-primary{background:var(--teal); color:#fff;}
@@ -263,6 +271,23 @@ nav button.active{color:var(--teal);}
   </div>
 </div>
 
+<!-- Login (only shown when Firebase is configured) -->
+<div class="overlay" id="loginOverlay">
+  <div class="sheet">
+    <h2 style="text-align:center;">🧾 ရောင်းချရေးဆိုင် POS</h2>
+    <div id="loginChecking" class="empty">စစ်ဆေးနေပါသည်...</div>
+    <div id="loginForm" style="display:none;">
+      <div class="field"><label>Gmail / Email</label><input id="loginEmail" type="email" autocomplete="username" placeholder="example@gmail.com"></div>
+      <div class="field"><label>Password (အနည်းဆုံး ၆ လုံး)</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Password"></div>
+      <div class="login-err" id="loginErr"></div>
+      <div class="actions"><button class="btn-primary" id="loginBtn">ဝင်မည်</button></div>
+      <div class="actions"><button class="btn-ghost" id="signupBtn">အကောင့်အသစ်ဖွင့်မည်</button></div>
+      <div class="actions"><button class="btn-ghost" id="googleBtn">Google နဲ့ဝင်မည်</button></div>
+      <div style="text-align:center;"><button class="link-btn" id="resetBtn">Password မေ့နေလား?</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- Shop settings modal -->
 <div class="overlay" id="shopOverlay">
   <div class="sheet">
@@ -273,6 +298,12 @@ nav button.active{color:var(--teal);}
     <div class="actions">
       <button class="btn-ghost" id="shopCancel">ပိတ်မည်</button>
       <button class="btn-primary" id="shopSave">သိမ်းမည်</button>
+    </div>
+
+    <div id="accountBox" style="display:none; margin-top:18px;">
+      <div class="section-label">👤 အကောင့်</div>
+      <div class="row"><span id="accountEmail" style="word-break:break-all;"></span></div>
+      <div class="actions"><button class="btn-danger" id="logoutBtn">Logout</button></div>
     </div>
 
     <div class="section-label" style="margin-top:22px;">💾 Data Backup (App ပြန်ထည့်ရင် ဒေတာမပျောက်စေရန်)</div>
@@ -358,9 +389,157 @@ function save(){
   localStorage.setItem(LS_SALES, JSON.stringify(sales));
 }
 
+// ---- Firebase cloud: Email/Gmail login + automatic sync across phones ----
+// (firebase-config.js ထဲမှာ config မထည့်ရသေးရင် အရင်လိုပဲ ဒီဖုန်းထဲမှာပဲ သိမ်းမယ်)
+const FB_CFG = window.FIREBASE_CONFIG || null;
+let fb = null, cloudOn = false, productsCol = null, salesCol = null, shopRef = null, unsubs = [];
+const clean = o => JSON.parse(JSON.stringify(o));
+
+function unsubAll(){ unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; }
+function loginMsg(t){ $('#loginErr').textContent = t || ''; }
+function authErrText(e){
+  const c = (e && e.code) || '';
+  if(c==='auth/invalid-email') return 'Email ပုံစံ မှားနေပါတယ်';
+  if(c==='auth/missing-password') return 'Password ထည့်ပါ';
+  if(c==='auth/weak-password') return 'Password အနည်းဆုံး ၆ လုံး လိုပါတယ်';
+  if(c==='auth/email-already-in-use') return 'ဒီ Email နဲ့ အကောင့်ရှိပြီးသားပါ — "ဝင်မည်" ကိုနှိပ်ပါ';
+  if(c==='auth/user-not-found' || c==='auth/wrong-password' || c==='auth/invalid-credential') return 'Email သို့မဟုတ် Password မှားနေပါတယ်';
+  if(c==='auth/network-request-failed') return 'Internet မရပါ၊ ချိတ်ဆက်မှု စစ်ပါ';
+  if(c==='auth/too-many-requests') return 'အကြိမ်များလွန်းပါပြီ၊ ခဏနေမှ ပြန်စမ်းပါ';
+  if(c==='auth/popup-closed-by-user' || c==='auth/cancelled-popup-request') return '';
+  if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/unauthorized-domain','auth/web-storage-unsupported'].includes(c))
+    return 'Google login ကို ဒီနေရာမှာ သုံးမရပါ — Email + Password နဲ့ ဝင်ပါ';
+  return 'အမှားရှိပါသည် ('+(c||(e&&e.message)||'unknown')+')';
+}
+
+async function uploadAll(prods, sls){
+  const ops = [];
+  prods.forEach(p=>ops.push([productsCol.doc(p.id), clean(p)]));
+  sls.forEach(x=>ops.push([salesCol.doc(x.id), clean(x)]));
+  for(let i=0;i<ops.length;i+=400){
+    const b = fb.db.batch();
+    ops.slice(i,i+400).forEach(([ref,data])=>b.set(ref,data));
+    await b.commit();
+  }
+}
+function cloudSetProduct(p){ if(cloudOn) productsCol.doc(p.id).set(clean(p)).catch(()=>{}); }
+function cloudDeleteProduct(id){ if(cloudOn) productsCol.doc(id).delete().catch(()=>{}); }
+function cloudAddSale(sale, ops){
+  if(!cloudOn) return;
+  const b = fb.db.batch();
+  b.set(salesCol.doc(sale.id), clean(sale));
+  ops.forEach(o=>b.set(productsCol.doc(o.id), {stock: firebase.firestore.FieldValue.increment(-o.qty)}, {merge:true}));
+  b.commit().catch(()=>{});
+}
+function pushShop(){
+  if(!cloudOn) return;
+  shopRef.set({
+    name: $('#shopName').value.trim(),
+    phone: localStorage.getItem(LS_PHONE) || '',
+    address: localStorage.getItem(LS_ADDR) || '',
+    thanks: localStorage.getItem(LS_THANKS) || ''
+  }).catch(()=>{});
+}
+
+function subscribeCloud(){
+  unsubAll();
+  unsubs.push(productsCol.onSnapshot(snap=>{
+    products = snap.docs.map(d=>({...d.data(), id:d.id}));
+    save(); refreshCategoryUI(); renderSellList(); renderProdList(); renderCartBar();
+  }, ()=>{}));
+  unsubs.push(salesCol.orderBy('date','desc').limit(1000).onSnapshot(snap=>{
+    sales = snap.docs.map(d=>({...d.data(), id:d.id}));
+    save();
+    if($('#screen-report').classList.contains('active')) renderReport();
+  }, ()=>{}));
+  unsubs.push(shopRef.onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const d = snap.data();
+    localStorage.setItem(LS_SHOP, d.name||'');
+    localStorage.setItem(LS_PHONE, d.phone||'');
+    localStorage.setItem(LS_ADDR, d.address||'');
+    localStorage.setItem(LS_THANKS, d.thanks||'');
+    if(document.activeElement !== $('#shopName')) $('#shopName').value = d.name || 'ကျွန်တော့်ဆိုင်';
+  }, ()=>{}));
+}
+
+async function onCloudLogin(user){
+  const base = fb.db.collection('users').doc(user.uid);
+  productsCol = base.collection('products');
+  salesCol = base.collection('sales');
+  shopRef = base.collection('meta').doc('shop');
+  cloudOn = true;
+  $('#accountEmail').textContent = user.email || '';
+  $('#accountBox').style.display = 'block';
+  // First login on this device: carry the data already on this phone up to the account
+  const flag = 'pos_cloud_init_'+user.uid;
+  if(!localStorage.getItem(flag)){
+    try{
+      const [p, x, sh] = await Promise.all([productsCol.limit(1).get(), salesCol.limit(1).get(), shopRef.get()]);
+      if(p.empty && x.empty && !sh.exists && (products.length || sales.length)){
+        uploadAll(products, sales).catch(()=>{});
+        pushShop();
+      }
+      localStorage.setItem(flag, '1');
+    }catch(e){}
+  }
+  subscribeCloud();
+  $('#loginOverlay').classList.remove('show');
+}
+
+function initFirebase(){
+  if(!FB_CFG || typeof firebase === 'undefined') return; // local-only mode
+  try{
+    firebase.initializeApp(FB_CFG);
+    fb = {auth: firebase.auth(), db: firebase.firestore()};
+    fb.db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+  }catch(e){ fb = null; return; }
+  $('#loginOverlay').classList.add('show');
+
+  const creds = ()=>({email: $('#loginEmail').value.trim(), pass: $('#loginPass').value});
+  $('#loginBtn').addEventListener('click', async ()=>{
+    const {email, pass} = creds(); loginMsg('');
+    if(!email || !pass){ loginMsg('Email နဲ့ Password ထည့်ပါ'); return; }
+    try{ await fb.auth.signInWithEmailAndPassword(email, pass); }catch(e){ loginMsg(authErrText(e)); }
+  });
+  $('#signupBtn').addEventListener('click', async ()=>{
+    const {email, pass} = creds(); loginMsg('');
+    if(!email || !pass){ loginMsg('Email နဲ့ Password ထည့်ပါ'); return; }
+    try{ await fb.auth.createUserWithEmailAndPassword(email, pass); }catch(e){ loginMsg(authErrText(e)); }
+  });
+  $('#googleBtn').addEventListener('click', async ()=>{
+    loginMsg('');
+    try{ await fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ loginMsg(authErrText(e)); }
+  });
+  $('#resetBtn').addEventListener('click', async ()=>{
+    const {email} = creds();
+    if(!email){ loginMsg('Email ကို အပေါ်မှာ အရင်ရိုက်ထည့်ပါ'); return; }
+    try{ await fb.auth.sendPasswordResetEmail(email); loginMsg('Password ပြန်ချိန်ညှိရန် Email ပို့ပြီးပါပြီ — Inbox / Spam ကြည့်ပါ'); }
+    catch(e){ loginMsg(authErrText(e)); }
+  });
+  $('#logoutBtn').addEventListener('click', async ()=>{
+    if(!confirm('Logout လုပ်မလား?\nဒီဖုန်းထဲက data ကို ဖျက်မယ် (Cloud ထဲမှာတော့ ကျန်ပါတယ်၊ ပြန်ဝင်ရင် ပြန်ရမယ်)')) return;
+    unsubAll(); cloudOn = false;
+    try{ await fb.auth.signOut(); }catch(e){}
+    [LS_PRODUCTS, LS_SALES, LS_SHOP, LS_PHONE, LS_ADDR, LS_THANKS].forEach(k=>localStorage.removeItem(k));
+    location.reload();
+  });
+
+  fb.auth.onAuthStateChanged(user=>{
+    if(user){ onCloudLogin(user); }
+    else{
+      cloudOn = false; unsubAll();
+      $('#accountBox').style.display = 'none';
+      $('#loginChecking').style.display = 'none';
+      $('#loginForm').style.display = 'block';
+      $('#loginOverlay').classList.add('show');
+    }
+  });
+}
+
 // shop name (local storage only — no login/account needed, works fully offline)
 $('#shopName').value = localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်';
-$('#shopName').addEventListener('change', e=>localStorage.setItem(LS_SHOP, e.target.value));
+$('#shopName').addEventListener('change', e=>{ localStorage.setItem(LS_SHOP, e.target.value); pushShop(); });
 
 // shop settings (phone / address / thank-you message)
 $('#shopSettingsBtn').addEventListener('click', ()=>{
@@ -375,6 +554,7 @@ $('#shopSave').addEventListener('click', ()=>{
   localStorage.setItem(LS_ADDR, $('#fShopAddr').value.trim());
   localStorage.setItem(LS_THANKS, $('#fThankYou').value.trim() || DEFAULT_THANKS);
   $('#shopOverlay').classList.remove('show');
+  pushShop();
 });
 
 // ---- Backup / Restore ----
@@ -425,6 +605,7 @@ function restoreFrom(text){
   localStorage.setItem(LS_THANKS, s.thanks||'');
   $('#shopName').value = s.name || 'ကျွန်တော့်ဆိုင်';
   save();
+  if(cloudOn){ uploadAll(products, sales).catch(()=>{}); pushShop(); }
   refreshCategoryUI(); renderSellList(); renderProdList(); renderReport();
   $('#restoreText').value = '';
   $('#shopOverlay').classList.remove('show');
@@ -553,6 +734,7 @@ $('#checkoutConfirm').addEventListener('click', ()=>{
   const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, total, cost, profit: total-cost, customer};
   sales.unshift(sale);
   save();
+  cloudAddSale(sale, ids.map(id=>({id, qty:cart[id]})));
   cart = {};
   renderSellList(); renderCartBar();
   $('#checkoutOverlay').classList.remove('show');
@@ -611,6 +793,7 @@ $('#prodSave').addEventListener('click', ()=>{
     products.push(savedProduct);
   }
   save();
+  cloudSetProduct(savedProduct);
   $('#prodOverlay').classList.remove('show');
   refreshCategoryUI(); renderProdList(); renderSellList();
 });
@@ -618,6 +801,7 @@ $('#prodDelete').addEventListener('click', ()=>{
   if(!editingId) return;
   products = products.filter(x=>x.id!==editingId);
   save();
+  cloudDeleteProduct(editingId);
   $('#prodOverlay').classList.remove('show');
   refreshCategoryUI(); renderProdList(); renderSellList();
 });
@@ -772,7 +956,7 @@ $('#receiptClose').addEventListener('click', ()=>$('#receiptOverlay').classList.
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // seed sample data if empty
-if(products.length===0){
+if(products.length===0 && !FB_CFG){
   products = [
     {id:'p1', name:'ကော်ဖီမစ်', buyPrice:1500, sellPrice:2500, stock:20},
     {id:'p2', name:'ရေသန့်ပုလင်း', buyPrice:300, sellPrice:500, stock:50},
@@ -785,6 +969,7 @@ refreshCategoryUI();
 renderSellList();
 renderProdList();
 renderReport();
+initFirebase();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
