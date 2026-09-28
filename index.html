@@ -148,6 +148,10 @@ nav button.active{color:var(--teal);}
   width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
   background:var(--bg); color:var(--ink); font-size:15px;
 }
+.field textarea{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--bg); color:var(--ink); font-size:14px; font-family:inherit; resize:vertical;
+}
 .sheet .actions{display:flex; gap:10px; margin-top:6px;}
 .sheet .actions button{flex:1; padding:11px; border-radius:10px; border:none; font-weight:700; font-size:15px;}
 .btn-primary{background:var(--teal); color:#fff;}
@@ -270,6 +274,22 @@ nav button.active{color:var(--teal);}
       <button class="btn-ghost" id="shopCancel">ပိတ်မည်</button>
       <button class="btn-primary" id="shopSave">သိမ်းမည်</button>
     </div>
+
+    <div class="section-label" style="margin-top:22px;">💾 Data Backup (App ပြန်ထည့်ရင် ဒေတာမပျောက်စေရန်)</div>
+    <div class="actions" style="margin-bottom:10px;">
+      <button class="btn-ghost" id="backupCopy">📋 Backup Copy</button>
+      <button class="btn-ghost" id="backupFile">⬇️ File သိမ်း</button>
+    </div>
+    <div class="field">
+      <label>ပြန်သွင်းရန် — Backup စာကို ဒီမှာ paste လုပ်ပါ</label>
+      <textarea id="restoreText" rows="3" placeholder="Backup စာကို paste လုပ်ပါ..."></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" id="restoreFileBtn">📂 File ရွေးမည်</button>
+      <button class="btn-primary" id="restoreBtn">ပြန်သွင်းမည်</button>
+    </div>
+    <input type="file" id="restoreFile" accept=".json,application/json,text/plain" style="display:none">
+    <div class="stock" style="margin-top:8px;">App ကို uninstall မလုပ်ခင် "Backup Copy" နှိပ်ပြီး Viber/Telegram/Notes ထဲ သိမ်းထားပါ။</div>
   </div>
 </div>
 
@@ -355,6 +375,73 @@ $('#shopSave').addEventListener('click', ()=>{
   localStorage.setItem(LS_ADDR, $('#fShopAddr').value.trim());
   localStorage.setItem(LS_THANKS, $('#fThankYou').value.trim() || DEFAULT_THANKS);
   $('#shopOverlay').classList.remove('show');
+});
+
+// ---- Backup / Restore ----
+if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(()=>{}); }
+
+function buildBackup(){
+  return JSON.stringify({
+    app:'pos-backup', v:1, savedAt:new Date().toISOString(),
+    products, sales,
+    shop:{
+      name: localStorage.getItem(LS_SHOP)||'',
+      phone: localStorage.getItem(LS_PHONE)||'',
+      address: localStorage.getItem(LS_ADDR)||'',
+      thanks: localStorage.getItem(LS_THANKS)||''
+    }
+  });
+}
+$('#backupCopy').addEventListener('click', async ()=>{
+  const text = buildBackup();
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('Backup ကူးပြီးပါပြီ ✅\nViber / Telegram / Notes ထဲ paste လုပ်ပြီး သိမ်းထားပါ။');
+  }catch(e){
+    $('#restoreText').value = text;
+    $('#restoreText').focus(); $('#restoreText').select();
+    alert('အလိုအလျောက် copy မရပါ။ အောက်က box ထဲက စာအားလုံးကို ကိုယ်တိုင် copy လုပ်ပြီး သိမ်းထားပါ။');
+  }
+});
+$('#backupFile').addEventListener('click', ()=>{
+  try{
+    const blob = new Blob([buildBackup()], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pos-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ alert('File သိမ်းမရပါ။ "Backup Copy" ကို သုံးပါ။'); }
+});
+function restoreFrom(text){
+  let d;
+  try{ d = JSON.parse(text.trim()); }catch(e){ alert('Backup စာ မှားနေပါတယ်။ အပြည့်အစုံ copy လုပ်ထားလား စစ်ပါ။'); return; }
+  if(!d || !Array.isArray(d.products) || !Array.isArray(d.sales)){ alert('ဒါ POS backup မဟုတ်ပါ။'); return; }
+  if(!confirm('လက်ရှိ data အားလုံးကို backup ထဲက data နဲ့ အစားထိုးမှာပါ။ ဆက်လုပ်မလား?')) return;
+  products = d.products; sales = d.sales;
+  const s = d.shop || {};
+  localStorage.setItem(LS_SHOP, s.name||'');
+  localStorage.setItem(LS_PHONE, s.phone||'');
+  localStorage.setItem(LS_ADDR, s.address||'');
+  localStorage.setItem(LS_THANKS, s.thanks||'');
+  $('#shopName').value = s.name || 'ကျွန်တော့်ဆိုင်';
+  save();
+  refreshCategoryUI(); renderSellList(); renderProdList(); renderReport();
+  $('#restoreText').value = '';
+  $('#shopOverlay').classList.remove('show');
+  alert('ပြန်သွင်းပြီးပါပြီ ✅');
+}
+$('#restoreBtn').addEventListener('click', ()=>{
+  const t = $('#restoreText').value;
+  if(!t.trim()){ alert('Backup စာကို အရင် paste လုပ်ပါ။'); return; }
+  restoreFrom(t);
+});
+$('#restoreFileBtn').addEventListener('click', ()=>$('#restoreFile').click());
+$('#restoreFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>restoreFrom(String(r.result));
+  r.readAsText(f);
+  e.target.value = '';
 });
 
 // ---- Navigation ----
