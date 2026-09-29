@@ -70,6 +70,20 @@ header input:focus{outline:1px solid rgba(255,255,255,.5); border-radius:4px;}
 }
 .cart-qty .cq-remove{border-color:var(--danger); color:var(--danger);}
 .cart-qty button:disabled{opacity:.35;}
+
+.admin-row{border:1px solid var(--line); border-radius:12px; padding:12px; background:var(--card);}
+.admin-row .em{font-weight:700; word-break:break-all; margin-bottom:4px;}
+.admin-badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:700; margin-left:6px;}
+.admin-badge.trial{background:#EFE3C7; color:#8a6414;}
+.admin-badge.active{background:#DCEEE8; color:var(--teal-d);}
+.admin-badge.expired,.admin-badge.suspended{background:#F3DAD2; color:var(--danger);}
+.admin-row .arow{display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;}
+.admin-row select, .admin-row input[type=date]{
+  padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-size:13px;
+}
+.admin-row .quick button{
+  padding:6px 9px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:12px; margin-right:6px;
+}
 .cart-qty span{min-width:16px; text-align:center; font-weight:700;}
 .section-label{font-size:13px; color:var(--sub); margin:14px 0 6px;}
 
@@ -223,6 +237,7 @@ nav button.active{color:var(--teal);}
 
 <header>
   <input id="shopName" value="ကျွန်တော့်ဆိုင်" />
+  <button id="adminBtn" class="settings-btn" title="Admin" style="display:none;">👑</button>
   <button id="shopSettingsBtn" class="settings-btn" title="ဆိုင်အချက်အလက်">⚙️</button>
 </header>
 
@@ -285,13 +300,47 @@ nav button.active{color:var(--teal);}
     <h2 style="text-align:center;">🧾 ရောင်းချရေးဆိုင် POS</h2>
     <div id="loginChecking" class="empty">စစ်ဆေးနေပါသည်...</div>
     <div id="loginForm" style="display:none;">
-      <div class="field"><label>Gmail / Email</label><input id="loginEmail" type="email" autocomplete="username" placeholder="example@gmail.com"></div>
+      <div class="field">
+        <label>Gmail / Email</label>
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="example@gmail.com">
+        <div class="stock" style="margin-top:4px;">⚠️ Password မေ့ရင် ဒီ Email ကိုပဲ ပြန်သုံးရမှာမို့ မှန်ကန်တဲ့ Email ထည့်ပါ</div>
+      </div>
       <div class="field"><label>Password (အနည်းဆုံး ၆ လုံး)</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Password"></div>
       <div class="login-err" id="loginErr"></div>
       <div class="actions"><button class="btn-primary" id="loginBtn">ဝင်မည်</button></div>
       <div class="actions"><button class="btn-ghost" id="signupBtn">အကောင့်အသစ်ဖွင့်မည်</button></div>
       <div class="actions"><button class="btn-ghost" id="googleBtn">Google နဲ့ဝင်မည်</button></div>
       <div style="text-align:center;"><button class="link-btn" id="resetBtn">Password မေ့နေလား?</button></div>
+    </div>
+    <div id="verifyPendingView" style="display:none;">
+      <div class="empty" style="padding:6px 0 14px;">
+        📧 <span id="verifyEmailShow"></span> ကို confirm mail ပို့ထားပါတယ်။<br>
+        Email box ထဲ ဝင်ကြည့်ပြီး link ကို နှိပ်ပါ။<br>
+        <span style="color:var(--danger);">Email မှားရိုက်မိရင် အောက်က "အကောင့်ပြောင်းမည်" ကိုနှိပ်ပြီး မှန်တဲ့ Email နဲ့ ပြန်ဖွင့်ပါ။</span>
+      </div>
+      <div class="login-err" id="verifyMsg"></div>
+      <div class="actions"><button class="btn-primary" id="recheckVerifyBtn">✅ Confirm ပြီးပါပြီ</button></div>
+      <div class="actions"><button class="btn-ghost" id="resendVerifyBtn">📧 Mail ပြန်ပို့ရန်</button></div>
+      <div style="text-align:center;"><button class="link-btn" id="verifyLogoutBtn">အကောင့်ပြောင်းမည် (Email မှားရိုက်မိရင်)</button></div>
+    </div>
+    <div id="licenseBlockView" style="display:none;">
+      <div class="empty" style="padding:6px 0 6px;">
+        <div id="licenseBlockTitle" style="font-size:17px; font-weight:700; color:var(--danger); margin-bottom:8px;"></div>
+        <div id="licenseBlockMsg"></div>
+      </div>
+      <div class="actions"><button class="btn-ghost" id="licenseLogoutBtn">Logout</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin panel (owner only) -->
+<div class="overlay" id="adminOverlay">
+  <div class="sheet" style="max-width:520px;">
+    <h2>👑 Admin — Customer အကောင့်များ</h2>
+    <div class="empty" id="adminLoading">Loading...</div>
+    <div id="adminList" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <div class="actions" style="margin-top:14px;">
+      <button class="btn-ghost" id="adminClose">ပိတ်မည်</button>
     </div>
   </div>
 </div>
@@ -471,7 +520,68 @@ function subscribeCloud(){
   }, ()=>{}));
 }
 
+const OWNER_EMAIL = 'yhkelectronics@gmail.com';
+const TRIAL_DAYS = 14;
+const PLAN_LABEL = {trial:'Trial', monthly:'Monthly', yearly:'Yearly'};
+const addDays = n => new Date(Date.now()+n*86400000).toISOString();
+
+function computeAccess(lic){
+  if(!lic) return {ok:false, reason:'no-license'};
+  if(lic.suspended) return {ok:false, reason:'suspended'};
+  if(!lic.validUntil || new Date(lic.validUntil).getTime() < Date.now()){
+    return {ok:false, reason: lic.plan==='trial' ? 'trial-expired' : 'expired'};
+  }
+  return {ok:true};
+}
+function showLicenseBlocked(reason){
+  cloudOn = false; unsubAll();
+  $('#accountBox').style.display = 'none';
+  $('#loginChecking').style.display = 'none';
+  $('#loginForm').style.display = 'none';
+  $('#verifyPendingView').style.display = 'none';
+  const titles = {
+    'trial-expired': '⏰ စမ်းသပ်ကာလ ကုန်ဆုံးသွားပါပြီ',
+    'expired': '⏰ Subscription သက်တမ်းကုန်ဆုံးသွားပါပြီ',
+    'suspended': '🚫 အကောင့် ယာယီပိတ်ထားပါသည်',
+    'no-license': '⚠️ အကောင့် စတင်၍မရပါ'
+  };
+  $('#licenseBlockTitle').textContent = titles[reason] || titles['no-license'];
+  $('#licenseBlockMsg').innerHTML = `ဆက်သုံးလိုပါက ဆိုင်ပိုင်ရှင်ကို ဆက်သွယ်ပါ —<br><b>${esc(OWNER_EMAIL)}</b>`;
+  $('#licenseBlockView').style.display = 'block';
+  $('#loginOverlay').classList.add('show');
+}
+
+function showVerifyPending(user){
+  cloudOn = false; unsubAll();
+  $('#accountBox').style.display = 'none';
+  $('#loginChecking').style.display = 'none';
+  $('#loginForm').style.display = 'none';
+  $('#verifyMsg').textContent = '';
+  $('#verifyEmailShow').textContent = user.email || '';
+  $('#verifyPendingView').style.display = 'block';
+  $('#loginOverlay').classList.add('show');
+}
+
 async function onCloudLogin(user){
+  const isOwner = (user.email||'').toLowerCase() === OWNER_EMAIL.toLowerCase();
+  $('#adminBtn').style.display = isOwner ? 'block' : 'none';
+
+  if(!isOwner){
+    const licRef = fb.db.collection('licenses').doc(user.uid);
+    let licSnap;
+    try{ licSnap = await licRef.get(); }
+    catch(e){ showLicenseBlocked('no-license'); return; }
+    let lic;
+    if(!licSnap.exists){
+      lic = {email:user.email||'', plan:'trial', validUntil: addDays(TRIAL_DAYS), suspended:false, createdAt: new Date().toISOString()};
+      try{ await licRef.set(lic); }catch(e){}
+    } else {
+      lic = licSnap.data();
+    }
+    const access = computeAccess(lic);
+    if(!access.ok){ showLicenseBlocked(access.reason); return; }
+  }
+
   const base = fb.db.collection('users').doc(user.uid);
   productsCol = base.collection('products');
   salesCol = base.collection('sales');
@@ -513,7 +623,26 @@ function initFirebase(){
   $('#signupBtn').addEventListener('click', async ()=>{
     const {email, pass} = creds(); loginMsg('');
     if(!email || !pass){ loginMsg('Email နဲ့ Password ထည့်ပါ'); return; }
-    try{ await fb.auth.createUserWithEmailAndPassword(email, pass); }catch(e){ loginMsg(authErrText(e)); }
+    try{
+      const cred = await fb.auth.createUserWithEmailAndPassword(email, pass);
+      await cred.user.sendEmailVerification().catch(()=>{});
+    }catch(e){ loginMsg(authErrText(e)); }
+  });
+  $('#resendVerifyBtn').addEventListener('click', async ()=>{
+    const u = fb.auth.currentUser; if(!u) return;
+    try{ await u.sendEmailVerification(); $('#verifyMsg').textContent = 'ပြန်ပို့ပြီးပါပြီ — Inbox/Spam ကြည့်ပါ'; }
+    catch(e){ $('#verifyMsg').textContent = authErrText(e); }
+  });
+  $('#recheckVerifyBtn').addEventListener('click', async ()=>{
+    const u = fb.auth.currentUser; if(!u) return;
+    try{
+      await u.reload();
+      if(u.emailVerified){ onCloudLogin(u); }
+      else{ $('#verifyMsg').textContent = 'ဒီတိုင်း Confirm မလုပ်ရသေးပါ — Email ထဲက link ကို အရင်နှိပ်ပါ'; }
+    }catch(e){ $('#verifyMsg').textContent = authErrText(e); }
+  });
+  $('#verifyLogoutBtn').addEventListener('click', async ()=>{
+    try{ await fb.auth.signOut(); }catch(e){}
   });
   $('#googleBtn').addEventListener('click', async ()=>{
     loginMsg('');
@@ -532,18 +661,106 @@ function initFirebase(){
     [LS_PRODUCTS, LS_SALES, LS_SHOP, LS_PHONE, LS_ADDR, LS_THANKS].forEach(k=>localStorage.removeItem(k));
     location.reload();
   });
+  $('#licenseLogoutBtn').addEventListener('click', async ()=>{
+    $('#licenseBlockView').style.display = 'none';
+    try{ await fb.auth.signOut(); }catch(e){}
+  });
 
   fb.auth.onAuthStateChanged(user=>{
-    if(user){ onCloudLogin(user); }
+    if(user && user.emailVerified){ onCloudLogin(user); }
+    else if(user){ showVerifyPending(user); }
     else{
       cloudOn = false; unsubAll();
       $('#accountBox').style.display = 'none';
+      $('#adminBtn').style.display = 'none';
       $('#loginChecking').style.display = 'none';
+      $('#verifyPendingView').style.display = 'none';
+      $('#licenseBlockView').style.display = 'none';
       $('#loginForm').style.display = 'block';
       $('#loginOverlay').classList.add('show');
     }
   });
 }
+
+// ---- Admin panel (owner only): view & control every customer's subscription ----
+function fmtDate(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleDateString('my-MM', {year:'numeric', month:'short', day:'numeric'});
+}
+function licBadge(lic){
+  const a = computeAccess(lic);
+  if(lic.suspended) return '<span class="admin-badge suspended">Suspended</span>';
+  if(!a.ok) return '<span class="admin-badge expired">Expired</span>';
+  return `<span class="admin-badge ${lic.plan==='trial'?'trial':'active'}">${PLAN_LABEL[lic.plan]||lic.plan} ✓</span>`;
+}
+async function openAdminPanel(){
+  $('#adminOverlay').classList.add('show');
+  $('#adminLoading').style.display = 'block';
+  $('#adminList').innerHTML = '';
+  try{
+    const snap = await fb.db.collection('licenses').orderBy('createdAt','desc').get();
+    $('#adminLoading').style.display = 'none';
+    if(snap.empty){ $('#adminList').innerHTML = '<div class="empty">Customer အကောင့် မရှိသေးပါ</div>'; return; }
+    $('#adminList').innerHTML = snap.docs.map(d=>{
+      const lic = d.data(), uid = d.id;
+      const dateVal = lic.validUntil ? new Date(lic.validUntil).toISOString().slice(0,10) : '';
+      return `<div class="admin-row" data-uid="${uid}">
+        <div class="em">${esc(lic.email||uid)} ${licBadge(lic)}</div>
+        <div class="arow">
+          <select class="a-plan">
+            <option value="trial" ${lic.plan==='trial'?'selected':''}>Trial</option>
+            <option value="monthly" ${lic.plan==='monthly'?'selected':''}>Monthly</option>
+            <option value="yearly" ${lic.plan==='yearly'?'selected':''}>Yearly</option>
+          </select>
+          <input type="date" class="a-date" value="${dateVal}">
+          <button class="a-save" style="background:var(--teal); color:#fff; border:none;">သိမ်းမည်</button>
+        </div>
+        <div class="arow quick">
+          <button class="a-quick" data-days="7">+7ရက်</button>
+          <button class="a-quick" data-days="30">+၁လ</button>
+          <button class="a-quick" data-days="365">+၁နှစ်</button>
+          <button class="a-suspend" style="border-color:var(--danger); color:var(--danger);">${lic.suspended?'Unsuspend':'Suspend'}</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    $('#adminLoading').style.display = 'none';
+    $('#adminList').innerHTML = '<div class="empty">Load မရပါ — Security Rules ထဲမှာ licenses collection ခွင့်ပြုချက် စစ်ပါ</div>';
+  }
+}
+async function saveLicenseRow(row){
+  const uid = row.dataset.uid;
+  const plan = row.querySelector('.a-plan').value;
+  const dateVal = row.querySelector('.a-date').value;
+  if(!dateVal) return;
+  const validUntil = new Date(dateVal+'T23:59:59').toISOString();
+  await fb.db.collection('licenses').doc(uid).set({plan, validUntil}, {merge:true});
+  await openAdminPanel();
+}
+$('#adminBtn').addEventListener('click', openAdminPanel);
+$('#adminClose').addEventListener('click', ()=>$('#adminOverlay').classList.remove('show'));
+$('#adminList').addEventListener('click', async e=>{
+  const row = e.target.closest('.admin-row'); if(!row) return;
+  const uid = row.dataset.uid;
+  if(e.target.classList.contains('a-save')){
+    await saveLicenseRow(row);
+  } else if(e.target.classList.contains('a-quick')){
+    const days = Number(e.target.dataset.days);
+    const cur = row.querySelector('.a-date').value;
+    const base = cur ? new Date(cur+'T00:00:00') : new Date();
+    const from = base.getTime() > Date.now() ? base.getTime() : Date.now();
+    const newDate = new Date(from + days*86400000);
+    row.querySelector('.a-date').value = newDate.toISOString().slice(0,10);
+    if(days===30) row.querySelector('.a-plan').value = 'monthly';
+    if(days===365) row.querySelector('.a-plan').value = 'yearly';
+    await saveLicenseRow(row);
+  } else if(e.target.classList.contains('a-suspend')){
+    const willSuspend = e.target.textContent.trim() === 'Suspend';
+    await fb.db.collection('licenses').doc(uid).set({suspended: willSuspend}, {merge:true});
+    await openAdminPanel();
+  }
+});
 
 // shop name (local storage only — no login/account needed, works fully offline)
 $('#shopName').value = localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်';
