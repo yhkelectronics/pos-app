@@ -63,6 +63,14 @@ header input:focus{outline:1px solid rgba(255,255,255,.5); border-radius:4px;}
 .cart-row .cn{font-weight:700;}
 .cart-row .cu{color:var(--sub); font-size:12px;}
 .cart-row .clt{color:var(--amber); font-weight:700; white-space:nowrap;}
+.cart-qty{display:flex; align-items:center; gap:6px;}
+.cart-qty button{
+  width:26px; height:26px; border-radius:8px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); font-size:15px; line-height:1; flex-shrink:0;
+}
+.cart-qty .cq-remove{border-color:var(--danger); color:var(--danger);}
+.cart-qty button:disabled{opacity:.35;}
+.cart-qty span{min-width:16px; text-align:center; font-weight:700;}
 .section-label{font-size:13px; color:var(--sub); margin:14px 0 6px;}
 
 main{flex:1; overflow-y:auto; padding:14px 14px 90px;}
@@ -669,10 +677,17 @@ function renderSellList(){
         <div class="stock">လက်ကျန် ${p.stock} ${inCart?`· ခြင်းတောင်းထဲ ${inCart}`:''}</div>
       </div>
       <div class="price">${fmt(p.sellPrice)}</div>
-      <button data-id="${p.id}" class="addBtn" ${out?'disabled':''}>+</button>
+      ${inCart>0 ? `<div class="cart-qty">
+        <button data-act="dec" data-id="${p.id}">－</button>
+        <span>${inCart}</span>
+        <button data-act="inc" data-id="${p.id}" ${out?'disabled':''}>＋</button>
+      </div>` : `<button data-id="${p.id}" class="addBtn" ${out?'disabled':''}>+</button>`}
     </div>`;
   }).join('');
   list.querySelectorAll('.addBtn').forEach(b=>b.addEventListener('click', ()=>addToCart(b.dataset.id)));
+  list.querySelectorAll('.cart-qty button').forEach(b=>b.addEventListener('click', ()=>{
+    if(b.dataset.act==='inc') addToCart(b.dataset.id); else removeFromCart(b.dataset.id);
+  }));
 }
 $('#sellSearch').addEventListener('input', renderSellList);
 $('#sellCatFilter').addEventListener('change', renderSellList);
@@ -682,6 +697,11 @@ function addToCart(id){
   const cur = cart[id]||0;
   if(cur+1 > p.stock) return;
   cart[id] = cur+1;
+  renderSellList(); renderCartBar();
+}
+function removeFromCart(id){
+  const cur = cart[id]||0;
+  if(cur<=1) delete cart[id]; else cart[id] = cur-1;
   renderSellList(); renderCartBar();
 }
 
@@ -697,9 +717,9 @@ function renderCartBar(){
   $('#cartBar').classList.toggle('show', count>0);
 }
 
-$('#checkoutBtn').addEventListener('click', ()=>{
+function renderCheckoutItems(){
   const ids = Object.keys(cart).filter(k=>cart[k]>0);
-  if(ids.length===0) return;
+  if(ids.length===0){ $('#checkoutOverlay').classList.remove('show'); renderCartBar(); return; }
   const rows = ids.map(id=>{
     const p = products.find(x=>x.id===id);
     return {p, qty:cart[id]};
@@ -707,10 +727,31 @@ $('#checkoutBtn').addEventListener('click', ()=>{
   const total = rows.reduce((s,r)=>s+r.p.sellPrice*r.qty,0);
   $('#checkoutItems').innerHTML = rows.map(r=>`
     <div class="cart-row">
-      <div><div class="cn">${esc(r.p.name)}</div><div class="cu">${r.qty} × ${fmt(r.p.sellPrice)}</div></div>
-      <div class="clt">${fmt(r.p.sellPrice*r.qty)}</div>
+      <div><div class="cn">${esc(r.p.name)}</div><div class="cu">${fmt(r.p.sellPrice)} × ${r.qty} = ${fmt(r.p.sellPrice*r.qty)}</div></div>
+      <div class="cart-qty">
+        <button data-act="dec" data-id="${r.p.id}">－</button>
+        <span>${r.qty}</span>
+        <button data-act="inc" data-id="${r.p.id}" ${r.qty>=r.p.stock? 'disabled':''}>＋</button>
+        <button class="cq-remove" data-act="rm" data-id="${r.p.id}">✕</button>
+      </div>
     </div>`).join('');
   $('#checkoutTotal').textContent = fmt(total)+' ကျပ်';
+  renderCartBar();
+}
+$('#checkoutItems').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-act]'); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  const p = products.find(x=>x.id===id);
+  if(act==='inc'){ if(cart[id] < p.stock) cart[id]++; }
+  else if(act==='dec'){ cart[id] = Math.max(0, (cart[id]||0)-1); if(cart[id]===0) delete cart[id]; }
+  else if(act==='rm'){ delete cart[id]; }
+  renderCheckoutItems();
+  renderSellList();
+});
+$('#checkoutBtn').addEventListener('click', ()=>{
+  const ids = Object.keys(cart).filter(k=>cart[k]>0);
+  if(ids.length===0) return;
+  renderCheckoutItems();
   $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value='';
   $('#checkoutOverlay').classList.add('show');
 });
