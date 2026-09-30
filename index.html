@@ -56,6 +56,7 @@ header input{
   font-family:inherit; max-width:60%;
 }
 header input:focus{outline:1px solid rgba(255,255,255,.5); border-radius:4px;}
+header input:read-only{opacity:.85; cursor:default;}
 .settings-btn{background:transparent; border:none; color:#fff; font-size:19px; flex-shrink:0; padding:4px;}
 
 .cart-review{display:flex; flex-direction:column; gap:8px; margin-bottom:6px;}
@@ -299,18 +300,38 @@ nav button.active{color:var(--teal);}
   <div class="sheet">
     <h2 style="text-align:center;">🧾 ရောင်းချရေးဆိုင် POS</h2>
     <div id="loginChecking" class="empty">စစ်ဆေးနေပါသည်...</div>
-    <div id="loginForm" style="display:none;">
+    <div id="loginView" style="display:none;">
       <div class="field">
         <label>Gmail / Email</label>
         <input id="loginEmail" type="email" autocomplete="username" placeholder="example@gmail.com">
-        <div class="stock" style="margin-top:4px;">⚠️ Password မေ့ရင် ဒီ Email ကိုပဲ ပြန်သုံးရမှာမို့ မှန်ကန်တဲ့ Email ထည့်ပါ</div>
       </div>
-      <div class="field"><label>Password (အနည်းဆုံး ၆ လုံး)</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Password"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Password"></div>
       <div class="login-err" id="loginErr"></div>
       <div class="actions"><button class="btn-primary" id="loginBtn">ဝင်မည်</button></div>
-      <div class="actions"><button class="btn-ghost" id="signupBtn">အကောင့်အသစ်ဖွင့်မည်</button></div>
-      <div class="actions"><button class="btn-ghost" id="googleBtn">Google နဲ့ဝင်မည်</button></div>
       <div style="text-align:center;"><button class="link-btn" id="resetBtn">Password မေ့နေလား?</button></div>
+      <div style="text-align:center; margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
+        အကောင့်မရှိသေးဘူးလား?
+        <button class="link-btn" id="gotoSignupBtn">အကောင့်အသစ်ဖွင့်ရန်</button>
+      </div>
+    </div>
+    <div id="signupView" style="display:none;">
+      <div class="field">
+        <label>ဆိုင်နာမည်</label>
+        <input id="signupShop" placeholder="ဥပမာ - ကျွန်တော့်ဆိုင်">
+        <div class="stock" style="margin-top:4px; color:var(--danger);">⚠️ ဒီနေရာမှာ တစ်ကြိမ်ထည့်ပြီးရင် နောက်ပြန်ပြင်လို့ မရတော့ပါ — သေချာစဉ်းစားပြီး ထည့်ပါ</div>
+      </div>
+      <div class="field">
+        <label>Gmail / Email</label>
+        <input id="signupEmail" type="email" autocomplete="username" placeholder="example@gmail.com">
+        <div class="stock" style="margin-top:4px;">⚠️ Password မေ့ရင် ဒီ Email ကိုပဲ ပြန်သုံးရမှာမို့ မှန်ကန်တဲ့ Email ထည့်ပါ</div>
+      </div>
+      <div class="field"><label>Password (အနည်းဆုံး ၆ လုံး)</label><input id="signupPass" type="password" autocomplete="new-password" placeholder="Password"></div>
+      <div class="login-err" id="signupErr"></div>
+      <div class="actions"><button class="btn-primary" id="signupBtn">အကောင့်ဖွင့်မည်</button></div>
+      <div style="text-align:center; margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
+        အကောင့်ရှိပြီးသားလား?
+        <button class="link-btn" id="gotoLoginBtn">Login ဝင်ရန်</button>
+      </div>
     </div>
     <div id="verifyPendingView" style="display:none;">
       <div class="empty" style="padding:6px 0 14px;">
@@ -537,7 +558,8 @@ function showLicenseBlocked(reason){
   cloudOn = false; unsubAll();
   $('#accountBox').style.display = 'none';
   $('#loginChecking').style.display = 'none';
-  $('#loginForm').style.display = 'none';
+  $('#loginView').style.display = 'none';
+  $('#signupView').style.display = 'none';
   $('#verifyPendingView').style.display = 'none';
   const titles = {
     'trial-expired': '⏰ စမ်းသပ်ကာလ ကုန်ဆုံးသွားပါပြီ',
@@ -555,7 +577,8 @@ function showVerifyPending(user){
   cloudOn = false; unsubAll();
   $('#accountBox').style.display = 'none';
   $('#loginChecking').style.display = 'none';
-  $('#loginForm').style.display = 'none';
+  $('#loginView').style.display = 'none';
+  $('#signupView').style.display = 'none';
   $('#verifyMsg').textContent = '';
   $('#verifyEmailShow').textContent = user.email || '';
   $('#verifyPendingView').style.display = 'block';
@@ -589,6 +612,7 @@ async function onCloudLogin(user){
   cloudOn = true;
   $('#accountEmail').textContent = user.email || '';
   $('#accountBox').style.display = 'block';
+  $('#shopName').readOnly = true; // shop name is fixed at signup for cloud accounts
   // First login on this device: carry the data already on this phone up to the account
   const flag = 'pos_cloud_init_'+user.uid;
   if(!localStorage.getItem(flag)){
@@ -614,20 +638,40 @@ function initFirebase(){
   }catch(e){ fb = null; return; }
   $('#loginOverlay').classList.add('show');
 
-  const creds = ()=>({email: $('#loginEmail').value.trim(), pass: $('#loginPass').value});
+  function showLoginScreen(){ $('#signupView').style.display='none'; $('#loginView').style.display='block'; loginMsg(''); }
+  function showSignupScreen(){ $('#loginView').style.display='none'; $('#signupView').style.display='block'; signupMsg(''); }
+  function signupMsg(t){ $('#signupErr').textContent = t || ''; }
+  $('#gotoSignupBtn').addEventListener('click', showSignupScreen);
+  $('#gotoLoginBtn').addEventListener('click', showLoginScreen);
+
+  const loginCreds = ()=>({email: $('#loginEmail').value.trim(), pass: $('#loginPass').value});
   $('#loginBtn').addEventListener('click', async ()=>{
-    const {email, pass} = creds(); loginMsg('');
+    const {email, pass} = loginCreds(); loginMsg('');
     if(!email || !pass){ loginMsg('Email နဲ့ Password ထည့်ပါ'); return; }
     try{ await fb.auth.signInWithEmailAndPassword(email, pass); }catch(e){ loginMsg(authErrText(e)); }
   });
+  $('#resetBtn').addEventListener('click', async ()=>{
+    const {email} = loginCreds();
+    if(!email){ loginMsg('Email ကို အပေါ်မှာ အရင်ရိုက်ထည့်ပါ'); return; }
+    try{ await fb.auth.sendPasswordResetEmail(email); loginMsg('Password ပြန်ချိန်ညှိရန် Email ပို့ပြီးပါပြီ — Inbox / Spam ကြည့်ပါ'); }
+    catch(e){ loginMsg(authErrText(e)); }
+  });
+
   $('#signupBtn').addEventListener('click', async ()=>{
-    const {email, pass} = creds(); loginMsg('');
-    if(!email || !pass){ loginMsg('Email နဲ့ Password ထည့်ပါ'); return; }
+    const shopNameVal = $('#signupShop').value.trim();
+    const email = $('#signupEmail').value.trim();
+    const pass = $('#signupPass').value;
+    signupMsg('');
+    if(!shopNameVal){ signupMsg('ဆိုင်နာမည် ထည့်ပါ'); return; }
+    if(!email || !pass){ signupMsg('Email နဲ့ Password ထည့်ပါ'); return; }
     try{
       const cred = await fb.auth.createUserWithEmailAndPassword(email, pass);
+      await fb.db.collection('users').doc(cred.user.uid).collection('meta').doc('shop')
+        .set({name: shopNameVal, phone:'', address:'', thanks: DEFAULT_THANKS});
       await cred.user.sendEmailVerification().catch(()=>{});
-    }catch(e){ loginMsg(authErrText(e)); }
+    }catch(e){ signupMsg(authErrText(e)); }
   });
+
   $('#resendVerifyBtn').addEventListener('click', async ()=>{
     const u = fb.auth.currentUser; if(!u) return;
     try{ await u.sendEmailVerification(); $('#verifyMsg').textContent = 'ပြန်ပို့ပြီးပါပြီ — Inbox/Spam ကြည့်ပါ'; }
@@ -643,16 +687,6 @@ function initFirebase(){
   });
   $('#verifyLogoutBtn').addEventListener('click', async ()=>{
     try{ await fb.auth.signOut(); }catch(e){}
-  });
-  $('#googleBtn').addEventListener('click', async ()=>{
-    loginMsg('');
-    try{ await fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ loginMsg(authErrText(e)); }
-  });
-  $('#resetBtn').addEventListener('click', async ()=>{
-    const {email} = creds();
-    if(!email){ loginMsg('Email ကို အပေါ်မှာ အရင်ရိုက်ထည့်ပါ'); return; }
-    try{ await fb.auth.sendPasswordResetEmail(email); loginMsg('Password ပြန်ချိန်ညှိရန် Email ပို့ပြီးပါပြီ — Inbox / Spam ကြည့်ပါ'); }
-    catch(e){ loginMsg(authErrText(e)); }
   });
   $('#logoutBtn').addEventListener('click', async ()=>{
     if(!confirm('Logout လုပ်မလား?\nဒီဖုန်းထဲက data ကို ဖျက်မယ် (Cloud ထဲမှာတော့ ကျန်ပါတယ်၊ ပြန်ဝင်ရင် ပြန်ရမယ်)')) return;
@@ -673,10 +707,12 @@ function initFirebase(){
       cloudOn = false; unsubAll();
       $('#accountBox').style.display = 'none';
       $('#adminBtn').style.display = 'none';
+      $('#shopName').readOnly = false;
       $('#loginChecking').style.display = 'none';
       $('#verifyPendingView').style.display = 'none';
       $('#licenseBlockView').style.display = 'none';
-      $('#loginForm').style.display = 'block';
+      $('#signupView').style.display = 'none';
+      $('#loginView').style.display = 'block';
       $('#loginOverlay').classList.add('show');
     }
   });
