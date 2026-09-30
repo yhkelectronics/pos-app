@@ -1,4 +1,4 @@
-const CACHE = 'pos-app-v3';
+const CACHE = 'pos-app-v4';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './firebase-config.js'];
 
 self.addEventListener('install', e => {

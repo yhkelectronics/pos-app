@@ -259,11 +259,28 @@ nav button.active{color:var(--teal);}
 
   <!-- REPORT SCREEN -->
   <section class="screen" id="screen-report">
+    <div class="row" style="margin-bottom:2px;">
+      <span style="font-size:13px;color:var(--sub);" id="periodRangeLabel"></span>
+      <button id="cutPeriodBtn" style="background:var(--amber); color:#fff; border:none; border-radius:8px; padding:6px 10px; font-size:12px;">လစာရင်း ပိတ်မည် ✂️</button>
+    </div>
     <div class="card" id="reportSummary"></div>
-    <h3 style="font-size:14px;color:var(--sub);margin:4px 2px;">ရောင်းချမှုမှတ်တမ်း</h3>
+    <h3 style="font-size:14px;color:var(--sub);margin:4px 2px;">ရောင်းချမှုမှတ်တမ်း (လက်ရှိ)</h3>
     <div class="sale-log" id="saleLog"></div>
+
+    <h3 style="font-size:14px;color:var(--sub);margin:18px 2px 4px;">📁 ပြီးခဲ့သောလများ</h3>
+    <div class="plist" id="periodsList"></div>
   </section>
 </main>
+
+<!-- Archived period viewer -->
+<div class="overlay" id="periodViewOverlay">
+  <div class="sheet">
+    <h2 id="periodViewTitle">လစာရင်း</h2>
+    <div class="card" id="periodViewSummary"></div>
+    <div class="sale-log" id="periodViewLog" style="margin-top:10px;"></div>
+    <div class="actions" style="margin-top:14px;"><button class="btn-ghost" id="periodViewClose">ပိတ်မည်</button></div>
+  </div>
+</div>
 
 <div class="cart-bar" id="cartBar">
   <div class="info">ခြင်းတောင်း <span id="cartCount">0</span> ခု — <b id="cartTotal">0</b> ကျပ်</div>
@@ -429,7 +446,7 @@ nav button.active{color:var(--teal);}
       <button class="btn-primary" id="receiptPrint" style="background:var(--amber);">🖨️ RawBT ဖြင့် Print</button>
     </div>
     <div class="actions" style="margin-top:8px;">
-      <a class="btn-ghost" id="receiptDownload" download="receipt.png" style="text-decoration:none;text-align:center;padding:11px;border-radius:10px;">ဓာတ်ပုံသိမ်းမည်</a>
+      <button class="btn-ghost" id="receiptDownload">ဓာတ်ပုံသိမ်းမည်</button>
       <button class="btn-ghost" id="receiptPrintFallback">System Print (အခြားနည်း)</button>
     </div>
   </div>
@@ -452,10 +469,11 @@ nav button.active{color:var(--teal);}
 <div id="printReceipt"></div>
 
 <script>
-const LS_PRODUCTS='pos_products', LS_SALES='pos_sales', LS_SHOP='pos_shop', LS_PHONE='pos_shop_phone', LS_ADDR='pos_shop_addr', LS_THANKS='pos_shop_thanks';
+const LS_PRODUCTS='pos_products', LS_SALES='pos_sales', LS_SHOP='pos_shop', LS_PHONE='pos_shop_phone', LS_ADDR='pos_shop_addr', LS_THANKS='pos_shop_thanks', LS_PERIODS='pos_periods';
 const DEFAULT_THANKS = 'ဝယ်ယူမှုအတွက် ကျေးဇူးတင်ပါသည် 🙏';
 let products = JSON.parse(localStorage.getItem(LS_PRODUCTS) || '[]');
 let sales = JSON.parse(localStorage.getItem(LS_SALES) || '[]');
+let periods = JSON.parse(localStorage.getItem(LS_PERIODS) || '[]'); // closed monthly summaries, newest last
 let cart = {}; // productId -> qty
 let editingId = null;
 
@@ -465,12 +483,13 @@ const fmt = n => Number(n||0).toLocaleString('en-US');
 function save(){
   localStorage.setItem(LS_PRODUCTS, JSON.stringify(products));
   localStorage.setItem(LS_SALES, JSON.stringify(sales));
+  localStorage.setItem(LS_PERIODS, JSON.stringify(periods));
 }
 
 // ---- Firebase cloud: Email/Gmail login + automatic sync across phones ----
 // (firebase-config.js ထဲမှာ config မထည့်ရသေးရင် အရင်လိုပဲ ဒီဖုန်းထဲမှာပဲ သိမ်းမယ်)
 const FB_CFG = window.FIREBASE_CONFIG || null;
-let fb = null, cloudOn = false, productsCol = null, salesCol = null, shopRef = null, unsubs = [];
+let fb = null, cloudOn = false, productsCol = null, salesCol = null, periodsCol = null, shopRef = null, unsubs = [];
 const clean = o => JSON.parse(JSON.stringify(o));
 
 function unsubAll(){ unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; }
@@ -527,6 +546,11 @@ function subscribeCloud(){
   }, ()=>{}));
   unsubs.push(salesCol.orderBy('date','desc').limit(1000).onSnapshot(snap=>{
     sales = snap.docs.map(d=>({...d.data(), id:d.id}));
+    save();
+    if($('#screen-report').classList.contains('active')) renderReport();
+  }, ()=>{}));
+  unsubs.push(periodsCol.orderBy('closedAt','asc').onSnapshot(snap=>{
+    periods = snap.docs.map(d=>({...d.data(), id:d.id}));
     save();
     if($('#screen-report').classList.contains('active')) renderReport();
   }, ()=>{}));
@@ -608,6 +632,7 @@ async function onCloudLogin(user){
   const base = fb.db.collection('users').doc(user.uid);
   productsCol = base.collection('products');
   salesCol = base.collection('sales');
+  periodsCol = base.collection('periods');
   shopRef = base.collection('meta').doc('shop');
   cloudOn = true;
   $('#accountEmail').textContent = user.email || '';
@@ -1100,18 +1125,27 @@ $('#prodDelete').addEventListener('click', ()=>{
   refreshCategoryUI(); renderProdList(); renderSellList();
 });
 
-// ---- Report screen ----
-function renderReport(){
-  const totalSales = sales.reduce((s,x)=>s+x.total,0);
-  const totalCost = sales.reduce((s,x)=>s+x.cost,0);
-  const totalProfit = sales.reduce((s,x)=>s+x.profit,0);
-  $('#reportSummary').innerHTML = `
+// ---- Report screen (with monthly "cut" / archive) ----
+function lastPeriodEnd(){
+  if(!periods.length) return null;
+  return periods[periods.length-1].rangeEnd;
+}
+function salesBetween(startIso, endIso){
+  return sales.filter(s=>{
+    const t = new Date(s.date).getTime();
+    return (!startIso || t > new Date(startIso).getTime()) && (!endIso || t <= new Date(endIso).getTime());
+  });
+}
+function renderSummaryAndLog(list, summaryEl, logEl, emptyMsg){
+  const totalSales = list.reduce((s,x)=>s+x.total,0);
+  const totalCost = list.reduce((s,x)=>s+x.cost,0);
+  const totalProfit = list.reduce((s,x)=>s+x.profit,0);
+  summaryEl.innerHTML = `
     <div class="row"><span>စုစုပေါင်းအရောင်း</span><span class="v">${fmt(totalSales)} ကျပ်</span></div>
     <div class="row"><span>စုစုပေါင်းအရင်း</span><span class="v">${fmt(totalCost)} ကျပ်</span></div>
     <div class="row total"><span>စုစုပေါင်းအမြတ်</span><span class="v profit">${fmt(totalProfit)} ကျပ်</span></div>`;
-  const log = $('#saleLog');
-  if(sales.length===0){ log.innerHTML='<div class="empty">ရောင်းချမှုမှတ်တမ်းမရှိသေးပါ</div>'; return; }
-  log.innerHTML = sales.slice(0,50).map(s=>{
+  if(list.length===0){ logEl.innerHTML = `<div class="empty">${emptyMsg}</div>`; return; }
+  logEl.innerHTML = list.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,200).map(s=>{
     const d = new Date(s.date);
     return `<div class="sale-item">
       <div class="top"><span>${fmt(s.total)} ကျပ်</span><span style="color:var(--teal)">+${fmt(s.profit)}</span></div>
@@ -1119,6 +1153,54 @@ function renderReport(){
     </div>`;
   }).join('');
 }
+function renderReport(){
+  const start = lastPeriodEnd();
+  const current = salesBetween(start, null);
+  renderSummaryAndLog(current, $('#reportSummary'), $('#saleLog'), 'ဒီကာလအတွက် ရောင်းချမှုမှတ်တမ်း မရှိသေးပါ');
+  $('#periodRangeLabel').textContent = start ? `${fmtDate(start)} မှ အခုအထိ` : 'အစကတည်းက အခုအထိ';
+  renderPeriodsList();
+}
+function renderPeriodsList(){
+  const el = $('#periodsList');
+  if(periods.length===0){ el.innerHTML = '<div class="empty">ပြီးခဲ့သောလ မှတ်တမ်း မရှိသေးပါ</div>'; return; }
+  el.innerHTML = periods.slice().reverse().map(p=>`
+    <div class="pitem" data-id="${p.id}" style="cursor:pointer;">
+      <div><div class="name">${esc(p.label)}</div><div class="stock">${fmt(p.totalSales)} ကျပ် · အမြတ် ${fmt(p.totalProfit)}</div></div>
+      <div class="price">📁</div>
+    </div>`).join('');
+  el.querySelectorAll('.pitem').forEach(row=>row.addEventListener('click', ()=>{
+    const p = periods.find(x=>x.id===row.dataset.id);
+    if(p) viewPeriod(p);
+  }));
+}
+function viewPeriod(p){
+  const start = p.rangeStart, end = p.rangeEnd;
+  const idx = periods.findIndex(x=>x.id===p.id);
+  const prevEnd = idx>0 ? periods[idx-1].rangeEnd : null;
+  const list = salesBetween(prevEnd, end);
+  $('#periodViewTitle').textContent = p.label;
+  renderSummaryAndLog(list, $('#periodViewSummary'), $('#periodViewLog'), 'ဒီကာလအတွက် မှတ်တမ်းမရှိပါ');
+  $('#periodViewOverlay').classList.add('show');
+}
+$('#periodViewClose').addEventListener('click', ()=>$('#periodViewOverlay').classList.remove('show'));
+
+$('#cutPeriodBtn').addEventListener('click', async ()=>{
+  const start = lastPeriodEnd();
+  const current = salesBetween(start, null);
+  if(current.length===0){ alert('ဒီကာလအတွက် ရောင်းချမှု မရှိသေးပါ'); return; }
+  const now = new Date().toISOString();
+  const rangeStart = start || (current.length ? current.reduce((min,s)=>s.date<min?s.date:min, current[0].date) : now);
+  const label = `${fmtDate(rangeStart)} — ${fmtDate(now)}`;
+  if(!confirm(`"${label}" ကာလကို ပိတ်ပြီး မှတ်တမ်းသိမ်းမလား?\nအရောင်းစာရင်းအားလုံး ဆက်ကျန်ပါမယ် — ဒါက ပြသမှုကို "အသစ်" ပြန်စတာပဲ ဖြစ်ပါတယ်။`)) return;
+  const totalSales = current.reduce((s,x)=>s+x.total,0);
+  const totalCost = current.reduce((s,x)=>s+x.cost,0);
+  const totalProfit = current.reduce((s,x)=>s+x.profit,0);
+  const period = {id:'period_'+Date.now(), rangeStart, rangeEnd:now, closedAt:now, label, totalSales, totalCost, totalProfit, salesCount:current.length};
+  periods.push(period);
+  save();
+  if(cloudOn) periodsCol.doc(period.id).set(period).catch(()=>{});
+  renderReport();
+});
 
 // ---- Receipt image + print ----
 let lastSale = null;
@@ -1152,12 +1234,36 @@ async function showReceipt(sale){
     const canvas = await html2canvas(document.getElementById('receiptRender'), {backgroundColor:'#fff', scale:2});
     const url = canvas.toDataURL('image/png');
     $('#receiptImg').src = url;
-    $('#receiptDownload').href = url;
+    lastReceiptBlob = await new Promise(res=>canvas.toBlob(res, 'image/png'));
     $('#receiptOverlay').classList.add('show');
   }catch(e){
     alert('ဘောင်ချာပုံဖန်တီးရာတွင် အမှားရှိပါသည်');
   }
 }
+
+let lastReceiptBlob = null;
+async function saveReceiptImage(){
+  if(!lastReceiptBlob){ alert('ပုံ မရှိသေးပါ'); return; }
+  const fileName = 'receipt-'+Date.now()+'.png';
+  const file = new File([lastReceiptBlob], fileName, {type:'image/png'});
+  // Strategy 1: native share sheet — most reliable inside an Android WebView/APK
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:fileName}); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; /* else fall through */ }
+  }
+  // Strategy 2: normal browser download (works in Chrome/Safari, often blocked in APK WebView)
+  try{
+    const blobUrl = URL.createObjectURL(lastReceiptBlob);
+    const a = document.createElement('a');
+    a.href = blobUrl; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(blobUrl), 15000);
+    return;
+  }catch(e){}
+  // Strategy 3: guide the user to long-press the image already shown on screen
+  alert('အလိုအလျောက် Download မရပါ — ပေါ်နေတဲ့ ဓာတ်ပုံကို ဖိထားပြီး (long-press) "Save image" ကိုနှိပ်ပါ');
+}
+$('#receiptDownload').addEventListener('click', saveReceiptImage);
 
 function printReceiptHTML(sale){
   const r = receiptHtmlParts(sale);
