@@ -1188,8 +1188,6 @@ async function permanentlyDeletePeriod(id){
   if(!p) return;
   const list = periodSalesList(p);
   if(!confirm(`⚠️ "${p.label}" ကာလရဲ့ ရောင်းချမှု ${list.length} ခုကို အပြီးဖျက်မှာပါ။\nဒါက ပြန်ရနိုင်မှာ မဟုတ်ပါ — သေချာလား?`)) return;
-  const typed = prompt('သေချာကြောင်းအတည်ပြုဖို့ "ဖျက်မည်" လို့ ဒီအောက်မှာ ရိုက်ထည့်ပါ:');
-  if(typed !== 'ဖျက်မည်'){ alert('စာမကိုက်ညီလို့ ပယ်ဖျက်လိုက်ပါတယ် — ဘာမှ ပျက်မသွားပါ'); return; }
   const idsToDelete = new Set(list.map(s=>s.id));
   sales = sales.filter(s=>!idsToDelete.has(s.id));
   periods = periods.filter(x=>x.id!==id);
