@@ -420,6 +420,7 @@ nav button.active{color:var(--teal);}
     <h2>ရောင်းချခြင်းအတည်ပြုရန်</h2>
     <div class="cart-review" id="checkoutItems"></div>
     <div class="row total"><span>စုစုပေါင်း</span><span class="v" id="checkoutTotal">0</span></div>
+    <div class="field" style="margin-top:10px;"><label>Discount (ကျပ်) — မရှိရင် မဖြည့်ပါနဲ့</label><input id="fDiscount" type="number" inputmode="numeric" placeholder="0"></div>
     <div class="section-label">Customer အချက်အလက် (မဖြည့်လည်းရ)</div>
     <div class="field"><label>Customer Name</label><input id="fCustName" placeholder="ဖောက်သည်အမည်"></div>
     <div class="field"><label>Customer Phone</label><input id="fCustPhone" type="tel" placeholder="ဖောက်သည်ဖုန်း"></div>
@@ -1011,7 +1012,7 @@ $('#checkoutBtn').addEventListener('click', ()=>{
   const ids = Object.keys(cart).filter(k=>cart[k]>0);
   if(ids.length===0) return;
   renderCheckoutItems();
-  $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value='';
+  $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value=''; $('#fDiscount').value='';
   $('#checkoutOverlay').classList.add('show');
 });
 $('#checkoutCancel').addEventListener('click', ()=>$('#checkoutOverlay').classList.remove('show'));
@@ -1031,7 +1032,8 @@ $('#checkoutConfirm').addEventListener('click', ()=>{
     phone: $('#fCustPhone').value.trim(),
     address: $('#fCustAddr').value.trim()
   };
-  const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, total, cost, profit: total-cost, customer};
+  const discount = Math.max(0, Math.min(Number($('#fDiscount').value)||0, total));
+  const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, total, discount, cost, profit: total-discount-cost, customer};
   sales.unshift(sale);
   save();
   cloudAddSale(sale, ids.map(id=>({id, qty:cart[id]})));
@@ -1118,7 +1120,7 @@ function salesBetween(startIso, endIso){
   });
 }
 function renderSummaryAndLog(list, summaryEl, logEl, emptyMsg){
-  const totalSales = list.reduce((s,x)=>s+x.total,0);
+  const totalSales = list.reduce((s,x)=>s+x.total-(x.discount||0),0);
   const totalCost = list.reduce((s,x)=>s+x.cost,0);
   const totalProfit = list.reduce((s,x)=>s+x.profit,0);
   summaryEl.innerHTML = `
@@ -1129,7 +1131,7 @@ function renderSummaryAndLog(list, summaryEl, logEl, emptyMsg){
   logEl.innerHTML = list.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,200).map(s=>{
     const d = new Date(s.date);
     return `<div class="sale-item">
-      <div class="top"><span>${fmt(s.total)} ကျပ်</span><span style="color:var(--teal)">+${fmt(s.profit)}</span></div>
+      <div class="top"><span>${fmt(s.total-(s.discount||0))} ကျပ်</span><span style="color:var(--teal)">+${fmt(s.profit)}</span></div>
       <div class="sub">${d.toLocaleDateString('my-MM')} ${d.toLocaleTimeString('my-MM',{hour:'2-digit',minute:'2-digit'})} · ${s.items.length} မျိုး${(s.customer&&s.customer.name)?(' · '+esc(s.customer.name)):''}</div>
     </div>`;
   }).join('');
@@ -1212,7 +1214,7 @@ $('#cutPeriodBtn').addEventListener('click', async ()=>{
   const rangeStart = start || (current.length ? current.reduce((min,s)=>s.date<min?s.date:min, current[0].date) : now);
   const label = `${fmtDate(rangeStart)} — ${fmtDate(now)}`;
   if(!confirm(`"${label}" ကာလကို ပိတ်ပြီး မှတ်တမ်းသိမ်းမလား?\nအရောင်းစာရင်းအားလုံး ဆက်ကျန်ပါမယ် — ဒါက ပြသမှုကို "အသစ်" ပြန်စတာပဲ ဖြစ်ပါတယ်။`)) return;
-  const totalSales = current.reduce((s,x)=>s+x.total,0);
+  const totalSales = current.reduce((s,x)=>s+x.total-(x.discount||0),0);
   const totalCost = current.reduce((s,x)=>s+x.cost,0);
   const totalProfit = current.reduce((s,x)=>s+x.profit,0);
   const period = {id:'period_'+Date.now(), rangeStart, rangeEnd:now, closedAt:now, label, totalSales, totalCost, totalProfit, salesCount:current.length};
@@ -1336,13 +1338,13 @@ function drawReceipt(ctx, sale, r, width){
   const cTot = pad + W;
 
   // header
-  setFont(13); ctx.fillStyle = INK;
-  const hy = y + fs(13)*1.15;
-  ctx.textAlign='left';   ctx.fillText('ပစ္စည်း', cName, hy);
-  ctx.textAlign='center'; ctx.fillText('အရေအတွက်', cQty, hy);
-  ctx.textAlign='right';  ctx.fillText('တစ်ခုစျေး', cPrice, hy);
-  ctx.fillText('စုစုပေါင်း', cTot, hy);
-  y += fs(13)*1.7;
+  setFont(16); ctx.fillStyle = INK;
+  const hy = y + fs(16)*1.15;
+  ctx.textAlign='left';   ctx.fillText('Description', cName, hy);
+  ctx.textAlign='center'; ctx.fillText('Qty', cQty, hy);
+  ctx.textAlign='right';  ctx.fillText('Price', cPrice, hy);
+  ctx.fillText('Total', cTot, hy);
+  y += fs(16)*1.7;
   ctx.fillStyle = '#000'; ctx.fillRect(pad, y, W, 2*s); y += 2*s;
 
   // rows
@@ -1366,10 +1368,22 @@ function drawReceipt(ctx, sale, r, width){
 
   // total
   y += 10*s;
+  const discount = sale.discount || 0;
   setFont(18); ctx.fillStyle = INK;
-  const ty = y + fs(18)*1.15;
-  ctx.textAlign='left';  ctx.fillText('စုစုပေါင်း', pad, ty);
+  let ty = y + fs(18)*1.15;
+  ctx.textAlign='left';  ctx.fillText('Total', pad, ty);
   ctx.textAlign='right'; ctx.fillText(fmt(sale.total)+' ကျပ်', pad+W, ty);
+  y += fs(18)*1.7;
+  ty = y + fs(18)*1.15;
+  ctx.textAlign='left';  ctx.fillText('Discount', pad, ty);
+  ctx.textAlign='right'; ctx.fillText(fmt(discount)+' ကျပ်', pad+W, ty);
+  y += fs(18)*1.7;
+  y += 2*s;
+  ctx.fillStyle = '#000'; ctx.fillRect(pad, y, W, 2*s); y += 2*s + 4*s;
+  setFont(18); ctx.fillStyle = INK;
+  ty = y + fs(18)*1.15;
+  ctx.textAlign='left';  ctx.fillText('Total Amount', pad, ty);
+  ctx.textAlign='right'; ctx.fillText(fmt(sale.total-discount)+' ကျပ်', pad+W, ty);
   y += fs(18)*1.7;
 
   y += 8*s;
@@ -1436,9 +1450,12 @@ function printReceiptHTML(sale){
     <h3>${esc(r.shop)}</h3>
     ${r.contact?`<div class="sub">${esc(r.contact)}</div>`:''}
     ${r.custHtml?`<div class="sub" style="text-align:left">${r.custHtml}</div>`:''}
-    <table><thead><tr><th>ပစ္စည်း</th><th style="text-align:center">အရေအတွက်</th><th style="text-align:right">တစ်ခုစျေး</th><th style="text-align:right">စုစုပေါင်း</th></tr></thead>
+    <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${r.rows}</tbody></table>
-    <div class="tot"><span>စုစုပေါင်း</span><span>${fmt(sale.total)} ကျပ်</span></div>
+    <div class="tot"><span>Total</span><span>${fmt(sale.total)} ကျပ်</span></div>
+    <div class="tot"><span>Discount</span><span>${fmt(sale.discount||0)} ကျပ်</span></div>
+    <div style="border-top:2px solid #000; margin-top:6px;"></div>
+    <div class="tot"><span>Total Amount</span><span>${fmt(sale.total-(sale.discount||0))} ကျပ်</span></div>
     <div class="foot">${esc(r.thanks)}</div>
     <div class="foot-date">${r.dateStr}</div>`;
 }
