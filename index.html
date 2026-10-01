@@ -278,7 +278,13 @@ nav button.active{color:var(--teal);}
     <h2 id="periodViewTitle">လစာရင်း</h2>
     <div class="card" id="periodViewSummary"></div>
     <div class="sale-log" id="periodViewLog" style="margin-top:10px;"></div>
-    <div class="actions" style="margin-top:14px;"><button class="btn-ghost" id="periodViewClose">ပိတ်မည်</button></div>
+    <div class="actions" style="margin-top:14px;">
+      <button class="btn-ghost" id="periodViewClose">ပိတ်မည်</button>
+      <button class="btn-ghost" id="periodViewUncut">↩️ ပြန်ပေါင်းမည်</button>
+    </div>
+    <div class="actions" style="margin-top:8px;">
+      <button class="btn-danger" id="periodViewDelete" style="flex:1;">🗑 အပြီးဖျက်မည် (ပြန်ရနိုင်မှာမဟုတ်)</button>
+    </div>
   </div>
 </div>
 
@@ -1166,23 +1172,62 @@ function renderPeriodsList(){
   el.innerHTML = periods.slice().reverse().map(p=>`
     <div class="pitem" data-id="${p.id}" style="cursor:pointer;">
       <div><div class="name">${esc(p.label)}</div><div class="stock">${fmt(p.totalSales)} ကျပ် · အမြတ် ${fmt(p.totalProfit)}</div></div>
-      <div class="price">📁</div>
+      <button class="period-del" data-id="${p.id}" style="background:none; border:none; color:var(--danger); font-size:18px; padding:4px 8px;">🗑️</button>
     </div>`).join('');
-  el.querySelectorAll('.pitem').forEach(row=>row.addEventListener('click', ()=>{
+  el.querySelectorAll('.pitem').forEach(row=>row.addEventListener('click', e=>{
+    if(e.target.closest('.period-del')) return;
     const p = periods.find(x=>x.id===row.dataset.id);
     if(p) viewPeriod(p);
   }));
+  el.querySelectorAll('.period-del').forEach(btn=>btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    uncutPeriod(btn.dataset.id);
+  }));
 }
-function viewPeriod(p){
-  const start = p.rangeStart, end = p.rangeEnd;
+function periodSalesList(p){
   const idx = periods.findIndex(x=>x.id===p.id);
   const prevEnd = idx>0 ? periods[idx-1].rangeEnd : null;
-  const list = salesBetween(prevEnd, end);
+  return salesBetween(prevEnd, p.rangeEnd);
+}
+function viewPeriod(p){
+  const list = periodSalesList(p);
   $('#periodViewTitle').textContent = p.label;
   renderSummaryAndLog(list, $('#periodViewSummary'), $('#periodViewLog'), 'ဒီကာလအတွက် မှတ်တမ်းမရှိပါ');
+  $('#periodViewDelete').dataset.id = p.id;
   $('#periodViewOverlay').classList.add('show');
 }
+// Soft: remove only the "cut" marker — underlying sales stay and merge back into the current period
+async function uncutPeriod(id){
+  if(!confirm('ဒီလစာရင်းချုပ် "ပိတ်ထားမှု" ကိုသာ ဖျက်မလား?\n(ရောင်းချမှုမှတ်တမ်းများ မပျက်ပါ — လက်ရှိကာလထဲ ပြန်ပေါင်းသွားမှာပါ)')) return;
+  periods = periods.filter(p=>p.id!==id);
+  save();
+  if(cloudOn) periodsCol.doc(id).delete().catch(()=>{});
+  $('#periodViewOverlay').classList.remove('show');
+  renderReport();
+}
+// Hard: permanently erase the sales records in this period — cannot be undone
+async function permanentlyDeletePeriod(id){
+  const p = periods.find(x=>x.id===id);
+  if(!p) return;
+  const list = periodSalesList(p);
+  if(!confirm(`⚠️ "${p.label}" ကာလရဲ့ ရောင်းချမှု ${list.length} ခုကို အပြီးဖျက်မှာပါ။\nဒါက ပြန်ရနိုင်မှာ မဟုတ်ပါ — သေချာလား?`)) return;
+  const typed = prompt('သေချာကြောင်းအတည်ပြုဖို့ "ဖျက်မည်" လို့ ဒီအောက်မှာ ရိုက်ထည့်ပါ:');
+  if(typed !== 'ဖျက်မည်'){ alert('စာမကိုက်ညီလို့ ပယ်ဖျက်လိုက်ပါတယ် — ဘာမှ ပျက်မသွားပါ'); return; }
+  const idsToDelete = new Set(list.map(s=>s.id));
+  sales = sales.filter(s=>!idsToDelete.has(s.id));
+  periods = periods.filter(x=>x.id!==id);
+  save();
+  if(cloudOn){
+    periodsCol.doc(id).delete().catch(()=>{});
+    list.forEach(s=>salesCol.doc(s.id).delete().catch(()=>{}));
+  }
+  $('#periodViewOverlay').classList.remove('show');
+  renderReport();
+  alert('အပြီးဖျက်ပြီးပါပြီ');
+}
 $('#periodViewClose').addEventListener('click', ()=>$('#periodViewOverlay').classList.remove('show'));
+$('#periodViewUncut').addEventListener('click', ()=>uncutPeriod($('#periodViewDelete').dataset.id));
+$('#periodViewDelete').addEventListener('click', ()=>permanentlyDeletePeriod($('#periodViewDelete').dataset.id));
 
 $('#cutPeriodBtn').addEventListener('click', async ()=>{
   const start = lastPeriodEnd();
