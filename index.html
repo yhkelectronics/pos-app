@@ -191,45 +191,45 @@ nav button.active{color:var(--teal);}
 
 /* receipt */
 #receiptRender{
-  position:fixed; left:-9999px; top:0; width:340px; background:#fff; color:#1a1a1a;
-  font-family:'Padauk',sans-serif; padding:18px;
+  position:fixed; left:-9999px; top:0; width:380px; background:#fff; color:#1a1a1a;
+  font-family:'Padauk',sans-serif; padding:18px; font-weight:700;
 }
-#receiptRender h3{text-align:center; margin-bottom:2px;}
-#receiptRender .sub{text-align:center; font-size:12px; color:#666; margin-bottom:10px;}
-#receiptRender table{width:100%; border-collapse:collapse; font-size:13px;}
-#receiptRender th{text-align:left; border-bottom:1px solid #ccc; padding:4px 2px; font-size:12px;}
-#receiptRender td{padding:4px 2px; border-bottom:1px dashed #ddd;}
-#receiptRender .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:10px; font-size:15px;}
-#receiptRender .foot{text-align:center; font-size:11px; color:#888; margin-top:14px;}
-#receiptRender .foot-date{text-align:left; font-size:11px; color:#888; margin-top:6px;}
+#receiptRender h3{text-align:center; margin-bottom:2px; font-size:19px; font-weight:700;}
+#receiptRender .sub{text-align:center; font-size:14px; color:#444; margin-bottom:10px; font-weight:700;}
+#receiptRender table{width:100%; border-collapse:collapse; font-size:16px;}
+#receiptRender th{text-align:left; border-bottom:2px solid #000; padding:6px 2px; font-size:14px; font-weight:700;}
+#receiptRender td{padding:6px 2px; border-bottom:1px dashed #ccc; font-weight:700;}
+#receiptRender .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:10px; font-size:18px;}
+#receiptRender .foot{text-align:center; font-size:13px; color:#333; margin-top:14px; font-weight:700;}
+#receiptRender .foot-date{text-align:left; font-size:13px; color:#333; margin-top:6px; font-weight:700;}
 .receipt-preview img{width:100%; border-radius:10px; border:1px solid var(--line);}
 
 #printReceipt{display:none;}
-#printReceipt.rawbt-mode{font-size:26px;}
-#printReceipt.rawbt-mode h3{font-size:36px; margin:0 0 6px; text-align:center;}
-#printReceipt.rawbt-mode .sub{font-size:22px; text-align:center; margin-bottom:8px;}
-#printReceipt.rawbt-mode table{width:100%; border-collapse:collapse; font-size:19px; table-layout:fixed;}
-#printReceipt.rawbt-mode th{text-align:left; border-bottom:3px solid #000; padding:5px 2px; font-size:16px; word-break:keep-all; white-space:nowrap;}
-#printReceipt.rawbt-mode td{padding:5px 2px; border-bottom:2px dashed #444; overflow-wrap:break-word;}
+#printReceipt.rawbt-mode{font-size:28px; font-weight:700;}
+#printReceipt.rawbt-mode h3{font-size:40px; margin:0 0 6px; text-align:center; font-weight:700;}
+#printReceipt.rawbt-mode .sub{font-size:24px; text-align:center; margin-bottom:8px; font-weight:700;}
+#printReceipt.rawbt-mode table{width:100%; border-collapse:collapse; font-size:23px; table-layout:fixed; font-weight:700;}
+#printReceipt.rawbt-mode th{text-align:left; border-bottom:4px solid #000; padding:6px 2px; font-size:20px; word-break:keep-all; white-space:nowrap; font-weight:700;}
+#printReceipt.rawbt-mode td{padding:6px 2px; border-bottom:2px dashed #333; overflow-wrap:break-word; font-weight:700;}
 #printReceipt.rawbt-mode th:first-child, #printReceipt.rawbt-mode td:first-child{width:34%;}
-#printReceipt.rawbt-mode .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:14px; font-size:28px;}
-#printReceipt.rawbt-mode .foot{text-align:center; font-size:20px; margin-top:18px; line-height:1.6;}
-#printReceipt.rawbt-mode .foot-date{text-align:left; font-size:18px; margin-top:8px;}
+#printReceipt.rawbt-mode .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:14px; font-size:32px;}
+#printReceipt.rawbt-mode .foot{text-align:center; font-size:22px; margin-top:18px; line-height:1.6; font-weight:700;}
+#printReceipt.rawbt-mode .foot-date{text-align:left; font-size:20px; margin-top:8px; font-weight:700;}
 @media print{
   body *{visibility:hidden;}
   #printReceipt, #printReceipt *{visibility:visible;}
   #printReceipt{
     display:block !important; position:absolute; left:0; top:0; width:76mm;
-    padding:2mm; font-family:'Padauk',sans-serif; font-size:12px; color:#000; background:#fff;
+    padding:2mm; font-family:'Padauk',sans-serif; font-size:14px; color:#000; background:#fff; font-weight:700;
   }
-  #printReceipt h3{text-align:center; margin:0 0 2px; font-size:15px;}
-  #printReceipt .sub{text-align:center; font-size:11px; color:#333; margin-bottom:6px;}
-  #printReceipt table{width:100%; border-collapse:collapse; font-size:11px;}
-  #printReceipt th{text-align:left; border-bottom:1px solid #000; padding:3px 1px;}
-  #printReceipt td{padding:3px 1px; border-bottom:1px dashed #999;}
-  #printReceipt .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:8px; font-size:13px;}
-  #printReceipt .foot{text-align:center; font-size:11px; margin-top:10px;}
-  #printReceipt .foot-date{text-align:left; font-size:11px; margin-top:4px;}
+  #printReceipt h3{text-align:center; margin:0 0 2px; font-size:18px; font-weight:700;}
+  #printReceipt .sub{text-align:center; font-size:13px; color:#222; margin-bottom:6px; font-weight:700;}
+  #printReceipt table{width:100%; border-collapse:collapse; font-size:13px;}
+  #printReceipt th{text-align:left; border-bottom:2px solid #000; padding:4px 1px; font-weight:700;}
+  #printReceipt td{padding:4px 1px; border-bottom:1px dashed #777; font-weight:700;}
+  #printReceipt .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:8px; font-size:16px;}
+  #printReceipt .foot{text-align:center; font-size:13px; margin-top:10px; font-weight:700;}
+  #printReceipt .foot-date{text-align:left; font-size:13px; margin-top:4px; font-weight:700;}
   @page{ size: 80mm auto; margin:0; }
 }
 </style>
@@ -1172,7 +1172,7 @@ function renderPeriodsList(){
   el.innerHTML = periods.slice().reverse().map(p=>`
     <div class="pitem" data-id="${p.id}" style="cursor:pointer;">
       <div><div class="name">${esc(p.label)}</div><div class="stock">${fmt(p.totalSales)} ကျပ် · အမြတ် ${fmt(p.totalProfit)}</div></div>
-      <button class="period-del" data-id="${p.id}" style="background:none; border:none; color:var(--danger); font-size:18px; padding:4px 8px;">🗑️</button>
+      <button class="period-del" data-id="${p.id}" title="ပြန်ပေါင်းမည် (data မပျက်)" style="background:none; border:none; color:var(--sub); font-size:18px; padding:4px 8px;">↩️</button>
     </div>`).join('');
   el.querySelectorAll('.pitem').forEach(row=>row.addEventListener('click', e=>{
     if(e.target.closest('.period-del')) return;
@@ -1354,7 +1354,7 @@ function buildEscPosFromCanvas(canvas){
         const idx = (y*w+x)*4;
         const a = img[idx+3];
         const gray = img[idx]*0.299 + img[idx+1]*0.587 + img[idx+2]*0.114;
-        if(a>10 && gray<180){
+        if(a>10 && gray<200){
           const bi = ry*bytesPerLine + (x>>3);
           bitmap[bi] |= (1<<(7-(x%8)));
         }
