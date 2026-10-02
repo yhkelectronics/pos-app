@@ -214,7 +214,7 @@ nav button.active{color:var(--teal);}
 #printReceipt.rawbt-mode th:first-child, #printReceipt.rawbt-mode td:first-child{width:34%;}
 #printReceipt.rawbt-mode .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:14px; font-size:32px;}
 #printReceipt.rawbt-mode .foot{text-align:center; font-size:22px; margin-top:18px; line-height:1.6; font-weight:700;}
-#printReceipt.rawbt-mode .foot-date{text-align:left; font-size:20px; margin-top:8px; font-weight:700;}
+#printReceipt.rawbt-mode .foot-date{text-align:right; font-size:20px; margin-top:8px; font-weight:700;}
 @media print{
   body *{visibility:hidden;}
   #printReceipt, #printReceipt *{visibility:visible;}
@@ -229,7 +229,7 @@ nav button.active{color:var(--teal);}
   #printReceipt td{padding:4px 1px; border-bottom:1px dashed #777; font-weight:700;}
   #printReceipt .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:8px; font-size:16px;}
   #printReceipt .foot{text-align:center; font-size:13px; margin-top:10px; font-weight:700;}
-  #printReceipt .foot-date{text-align:left; font-size:13px; margin-top:4px; font-weight:700;}
+  #printReceipt .foot-date{text-align:right; font-size:13px; margin-top:4px; font-weight:700;}
   @page{ size: 80mm auto; margin:0; }
 }
 </style>
@@ -430,7 +430,9 @@ nav button.active{color:var(--teal);}
   <div class="sheet">
     <h2>ရောင်းချခြင်းအတည်ပြုရန်</h2>
     <div class="cart-review" id="checkoutItems"></div>
-    <div class="row total"><span>စုစုပေါင်း</span><span class="v" id="checkoutTotal">0</span></div>
+    <div class="row"><span>Total</span><span class="v" id="checkoutSubtotal">0</span></div>
+    <div class="field" style="margin-bottom:4px;"><label>Discount (ကျပ်) — မရှိရင် မဖြည့်ပါနဲ့</label><input id="fDiscount" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+    <div class="row total"><span>Total Amount</span><span class="v" id="checkoutTotal">0</span></div>
     <div class="section-label">Customer အချက်အလက် (မဖြည့်လည်းရ)</div>
     <div class="field"><label>Customer Name</label><input id="fCustName" placeholder="ဖောက်သည်အမည်"></div>
     <div class="field"><label>Customer Phone</label><input id="fCustPhone" type="tel" placeholder="ဖောက်သည်ဖုန်း"></div>
@@ -1032,7 +1034,9 @@ function renderCheckoutItems(){
         <button class="cq-remove" data-act="rm" data-id="${r.p.id}">✕</button>
       </div>
     </div>`).join('');
-  $('#checkoutTotal').textContent = fmt(total)+' ကျပ်';
+  const disc = Math.min(Math.max(Number($('#fDiscount').value)||0, 0), total);
+  $('#checkoutSubtotal').textContent = fmt(total)+' ကျပ်';
+  $('#checkoutTotal').textContent = fmt(total-disc)+' ကျပ်';
   renderCartBar();
 }
 $('#checkoutItems').addEventListener('click', e=>{
@@ -1045,11 +1049,12 @@ $('#checkoutItems').addEventListener('click', e=>{
   renderCheckoutItems();
   renderSellList();
 });
+$('#fDiscount').addEventListener('input', renderCheckoutItems);
 $('#checkoutBtn').addEventListener('click', ()=>{
   const ids = Object.keys(cart).filter(k=>cart[k]>0);
   if(ids.length===0) return;
   renderCheckoutItems();
-  $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value='';
+  $('#fCustName').value=''; $('#fCustPhone').value=''; $('#fCustAddr').value=''; $('#fDiscount').value='';
   $('#checkoutOverlay').classList.add('show');
 });
 $('#checkoutCancel').addEventListener('click', ()=>$('#checkoutOverlay').classList.remove('show'));
@@ -1062,14 +1067,16 @@ $('#checkoutConfirm').addEventListener('click', ()=>{
     p.stock -= cart[id];
     return {name:p.name, qty:cart[id], price:p.sellPrice, buy:p.buyPrice};
   });
-  const total = items.reduce((s,i)=>s+i.price*i.qty,0);
+  const subtotal = items.reduce((s,i)=>s+i.price*i.qty,0);
+  const discount = Math.min(Math.max(Number($('#fDiscount').value)||0, 0), subtotal);
+  const total = subtotal - discount;
   const cost = items.reduce((s,i)=>s+i.buy*i.qty,0);
   const customer = {
     name: $('#fCustName').value.trim(),
     phone: $('#fCustPhone').value.trim(),
     address: $('#fCustAddr').value.trim()
   };
-  const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, total, cost, profit: total-cost, customer};
+  const sale = {id:'s'+Date.now(), date:new Date().toISOString(), items, subtotal, discount, total, cost, profit: total-cost, customer};
   sales.unshift(sale);
   save();
   cloudAddSale(sale, ids.map(id=>({id, qty:cart[id]})));
@@ -1260,6 +1267,9 @@ $('#cutPeriodBtn').addEventListener('click', async ()=>{
 
 // ---- Receipt image + print ----
 let lastSale = null;
+function receiptDateEN(iso){
+  return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).toUpperCase();
+}
 function receiptHtmlParts(sale){
   const shop = localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်';
   const phone = localStorage.getItem(LS_PHONE) || '';
@@ -1271,7 +1281,7 @@ function receiptHtmlParts(sale){
   if(c.address) custLines.push('Address: '+c.address);
   const rows = sale.items.map(i=>`<tr><td>${esc(i.name)}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmt(i.price)}</td><td style="text-align:right">${fmt(i.price*i.qty)}</td></tr>`).join('');
   const thanks = localStorage.getItem(LS_THANKS) || DEFAULT_THANKS;
-  return {shop, contact:[addr,phone].filter(Boolean).join(' · '), custHtml:custLines.map(esc).join('<br>'), rows, dateStr:new Date(sale.date).toLocaleString('my-MM'), thanks};
+  return {shop, contactLines:[addr,phone].filter(Boolean), custHtml:custLines.map(esc).join('<br>'), rows, dateStr:receiptDateEN(sale.date), thanks};
 }
 
 function receiptData(sale){
@@ -1285,9 +1295,9 @@ function receiptData(sale){
   if(c.address) customerLines.push('Address: '+c.address);
   const thanks = localStorage.getItem(LS_THANKS) || DEFAULT_THANKS;
   return {
-    shop, contact:[addr,phone].filter(Boolean).join(' · '), customerLines,
+    shop, contactLines:[addr,phone].filter(Boolean), customerLines,
     items: sale.items.map(i=>({name:i.name, qty:i.qty, price:i.price, lineTotal:i.price*i.qty})),
-    total: sale.total, thanks, dateStr: new Date(sale.date).toLocaleString('my-MM')
+    total: sale.total, discount: sale.discount||0, subtotal: (sale.subtotal!=null ? sale.subtotal : sale.total), thanks, dateStr: receiptDateEN(sale.date)
   };
 }
 
@@ -1311,15 +1321,18 @@ function drawReceiptCanvas(sale, cfg){
   mctx.font = `700 ${cfg.f.td}px Padauk`;
   const itemLines = r.items.map(it=>({it, lines: wrapCanvasText(mctx, it.name, nameColW-6)}));
   const lh = f => Math.round(f*1.5);
+  mctx.font = `700 ${cfg.f.sub}px Padauk`;
+  const contactWrapped = [];
+  r.contactLines.forEach(t=>wrapCanvasText(mctx, t, cfg.width - cfg.pad*2).forEach(l=>contactWrapped.push(l)));
 
   let y = cfg.pad;
   y += lh(cfg.f.title);
-  if(r.contact) y += lh(cfg.f.sub);
+  y += lh(cfg.f.sub) * contactWrapped.length;
   y += lh(cfg.f.sub) * r.customerLines.length;
   y += 8 + lh(cfg.f.th) + 10;
   itemLines.forEach(({lines})=> y += lh(cfg.f.td)*Math.max(1,lines.length) + 10);
-  y += 8 + lh(cfg.f.tot) + 10;
-  y += lh(cfg.f.foot) + lh(cfg.f.foot) + cfg.pad;
+  y += 8 + lh(cfg.f.td)*2 + 14 + lh(cfg.f.tot) + 10;
+  y += lh(cfg.f.foot) + lh(cfg.f.date) + cfg.pad;
 
   const canvas = document.createElement('canvas');
   canvas.width = cfg.width; canvas.height = Math.ceil(y);
@@ -1338,9 +1351,9 @@ function drawReceiptCanvas(sale, cfg){
   ctx.font = `700 ${cfg.f.title}px Padauk`; ctx.textAlign = 'center';
   cy += cfg.f.title; ctx.fillText(r.shop, cfg.width/2, cy); cy += lh(cfg.f.title) - cfg.f.title;
 
-  if(r.contact){
-    ctx.font = `700 ${cfg.f.sub}px Padauk`;
-    cy += cfg.f.sub; ctx.fillText(r.contact, cfg.width/2, cy); cy += lh(cfg.f.sub) - cfg.f.sub;
+  if(contactWrapped.length){
+    ctx.font = `700 ${cfg.f.sub}px Padauk`; ctx.textAlign = 'center';
+    contactWrapped.forEach(line=>{ cy += cfg.f.sub; ctx.fillText(line, cfg.width/2, cy); cy += lh(cfg.f.sub) - cfg.f.sub; });
   }
   if(r.customerLines.length){
     ctx.font = `700 ${cfg.f.sub}px Padauk`; ctx.textAlign = 'left';
@@ -1350,10 +1363,10 @@ function drawReceiptCanvas(sale, cfg){
 
   ctx.font = `700 ${cfg.f.th}px Padauk`;
   cy += cfg.f.th;
-  ctx.textAlign='left'; ctx.fillText('ပစ္စည်း', colX.name, cy);
-  ctx.textAlign='center'; ctx.fillText('အရေ', colX.qty + cfg.qtyW/2, cy);
-  ctx.textAlign='right'; ctx.fillText('စျေး', colX.price + cfg.priceW, cy);
-  ctx.fillText('စုစု', colX.total + cfg.totalW, cy);
+  ctx.textAlign='left'; ctx.fillText('Description', colX.name, cy);
+  ctx.textAlign='center'; ctx.fillText('Qty', colX.qty + cfg.qtyW/2, cy);
+  ctx.textAlign='right'; ctx.fillText('Price', colX.price + cfg.priceW, cy);
+  ctx.fillText('Total', colX.total + cfg.totalW, cy);
   cy += 6;
   ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cfg.width/280);
   ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
@@ -1379,21 +1392,34 @@ function drawReceiptCanvas(sale, cfg){
   });
   cy += 8;
 
+  ctx.font = `700 ${cfg.f.td}px Padauk`;
+  cy += cfg.f.td;
+  ctx.textAlign='left'; ctx.fillText('Total', cfg.pad, cy);
+  ctx.textAlign='right'; ctx.fillText(fmt(r.subtotal)+' ကျပ်', cfg.width-cfg.pad, cy);
+  cy += lh(cfg.f.td) - cfg.f.td;
+  cy += cfg.f.td;
+  ctx.textAlign='left'; ctx.fillText('Discount', cfg.pad, cy);
+  ctx.textAlign='right'; ctx.fillText((r.discount>0?'-':'')+fmt(r.discount)+' ကျပ်', cfg.width-cfg.pad, cy);
+  cy += lh(cfg.f.td) - cfg.f.td + 4;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cfg.width/280); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
+  cy += 10;
+
   ctx.font = `700 ${cfg.f.tot}px Padauk`;
   cy += cfg.f.tot;
-  ctx.textAlign='left'; ctx.fillText('စုစုပေါင်း', cfg.pad, cy);
+  ctx.textAlign='left'; ctx.fillText('Total Amount', cfg.pad, cy);
   ctx.textAlign='right'; ctx.fillText(fmt(r.total)+' ကျပ်', cfg.width-cfg.pad, cy);
   cy += lh(cfg.f.tot) - cfg.f.tot + 10;
 
   ctx.font = `700 ${cfg.f.foot}px Padauk`; ctx.textAlign = 'center';
   cy += cfg.f.foot; ctx.fillText(r.thanks, cfg.width/2, cy); cy += lh(cfg.f.foot) - cfg.f.foot;
-  ctx.textAlign = 'left';
-  cy += cfg.f.foot; ctx.fillText(r.dateStr, cfg.pad, cy);
+  ctx.font = `700 ${cfg.f.date}px Padauk`; ctx.textAlign = 'right';
+  cy += cfg.f.date; ctx.fillText(r.dateStr, cfg.width-cfg.pad, cy);
 
   return canvas;
 }
-const RECEIPT_IMAGE_CFG = {width:380, pad:18, qtyW:50, priceW:80, totalW:90, f:{title:19, sub:14, th:14, td:16, tot:18, foot:13}};
-const RECEIPT_PRINT_CFG = {width:576, pad:22, qtyW:80, priceW:130, totalW:140, f:{title:34, sub:22, th:20, td:23, tot:30, foot:21}};
+const RECEIPT_IMAGE_CFG = {width:380, pad:18, qtyW:40, priceW:70, totalW:80, f:{title:19, sub:14, th:16, td:16, tot:18, foot:18, date:14}};
+const RECEIPT_PRINT_CFG = {width:576, pad:22, qtyW:80, priceW:130, totalW:140, f:{title:34, sub:22, th:20, td:23, tot:30, foot:21, date:20}};
 
 async function ensureFontsReady(){
   try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(e){}
@@ -1440,11 +1466,13 @@ function printReceiptHTML(sale){
   const r = receiptHtmlParts(sale);
   return `
     <h3>${esc(r.shop)}</h3>
-    ${r.contact?`<div class="sub">${esc(r.contact)}</div>`:''}
+    ${r.contactLines.map(l=>`<div class="sub" style="margin-bottom:2px">${esc(l)}</div>`).join('')}
     ${r.custHtml?`<div class="sub" style="text-align:left">${r.custHtml}</div>`:''}
-    <table><thead><tr><th>ပစ္စည်း</th><th style="text-align:center">အရေအတွက်</th><th style="text-align:right">တစ်ခုစျေး</th><th style="text-align:right">စုစုပေါင်း</th></tr></thead>
+    <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${r.rows}</tbody></table>
-    <div class="tot"><span>စုစုပေါင်း</span><span>${fmt(sale.total)} ကျပ်</span></div>
+    <div class="tot" style="margin-top:10px;font-size:inherit"><span>Total</span><span>${fmt(sale.subtotal!=null?sale.subtotal:sale.total)} ကျပ်</span></div>
+    <div class="tot" style="margin-top:4px;font-size:inherit"><span>Discount</span><span>${(sale.discount>0?'-':'')+fmt(sale.discount||0)} ကျပ်</span></div>
+    <div class="tot" style="border-top:2px solid #000;padding-top:6px"><span>Total Amount</span><span>${fmt(sale.total)} ကျပ်</span></div>
     <div class="foot">${esc(r.thanks)}</div>
     <div class="foot-date">${r.dateStr}</div>`;
 }
