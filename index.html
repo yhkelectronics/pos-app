@@ -1302,13 +1302,27 @@ function receiptData(sale){
 }
 
 // ---- Fast, dependency-free receipt renderer (plain Canvas 2D — no html2canvas, no CDN, no font-load race) ----
+function splitGraphemes(str){
+  try{ if(typeof Intl!=='undefined' && Intl.Segmenter) return Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(str), x=>x.segment); }catch(e){}
+  return Array.from(str);
+}
+// Word-aware wrap (English words never split mid-word); only a single word wider than the
+// column is broken, and then by grapheme cluster so Myanmar marks (း ် ့ etc.) stay with their letter.
 function wrapCanvasText(ctx, text, maxWidth){
-  if(ctx.measureText(text).width <= maxWidth) return [text];
+  const w = t => ctx.measureText(t).width;
+  if(w(text) <= maxWidth) return [text];
   const lines = []; let line = '';
-  for(const ch of text){
-    const test = line + ch;
-    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = ch; }
-    else line = test;
+  for(const word of text.split(' ')){
+    const test = line ? line+' '+word : word;
+    if(w(test) <= maxWidth){ line = test; continue; }
+    if(line){ lines.push(line); line = ''; }
+    if(w(word) <= maxWidth){ line = word; continue; }
+    let part = '';
+    for(const g of splitGraphemes(word)){
+      if(w(part+g) > maxWidth && part){ lines.push(part); part = g; }
+      else part += g;
+    }
+    line = part;
   }
   if(line) lines.push(line);
   return lines.length ? lines : [text];
@@ -1325,6 +1339,9 @@ function drawReceiptCanvas(sale, cfg){
   const contactWrapped = [];
   r.contactLines.forEach(t=>wrapCanvasText(mctx, t, cfg.width - cfg.pad*2).forEach(l=>contactWrapped.push(l)));
 
+  mctx.font = `700 ${cfg.f.foot}px Padauk`;
+  const thanksWrapped = wrapCanvasText(mctx, r.thanks, cfg.width - cfg.pad*2);
+
   let y = cfg.pad;
   y += lh(cfg.f.title);
   y += lh(cfg.f.sub) * contactWrapped.length;
@@ -1332,7 +1349,7 @@ function drawReceiptCanvas(sale, cfg){
   y += 8 + lh(cfg.f.th) + 10;
   itemLines.forEach(({lines})=> y += lh(cfg.f.td)*Math.max(1,lines.length) + 10);
   y += 8 + lh(cfg.f.td)*2 + 14 + lh(cfg.f.tot) + 10;
-  y += lh(cfg.f.foot) + lh(cfg.f.date) + cfg.pad;
+  y += lh(cfg.f.foot) * thanksWrapped.length + lh(cfg.f.date) + cfg.pad;
 
   const canvas = document.createElement('canvas');
   canvas.width = cfg.width; canvas.height = Math.ceil(y);
@@ -1412,14 +1429,14 @@ function drawReceiptCanvas(sale, cfg){
   cy += lh(cfg.f.tot) - cfg.f.tot + 10;
 
   ctx.font = `700 ${cfg.f.foot}px Padauk`; ctx.textAlign = 'center';
-  cy += cfg.f.foot; ctx.fillText(r.thanks, cfg.width/2, cy); cy += lh(cfg.f.foot) - cfg.f.foot;
+  thanksWrapped.forEach(t=>{ cy += cfg.f.foot; ctx.fillText(t, cfg.width/2, cy); cy += lh(cfg.f.foot) - cfg.f.foot; });
   ctx.font = `700 ${cfg.f.date}px Padauk`; ctx.textAlign = 'right';
   cy += cfg.f.date; ctx.fillText(r.dateStr, cfg.width-cfg.pad, cy);
 
   return canvas;
 }
 const RECEIPT_IMAGE_CFG = {width:380, pad:18, qtyW:40, priceW:70, totalW:80, f:{title:19, sub:14, th:16, td:16, tot:18, foot:18, date:14}};
-const RECEIPT_PRINT_CFG = {width:576, pad:22, qtyW:80, priceW:130, totalW:140, f:{title:34, sub:22, th:20, td:23, tot:30, foot:21, date:20}};
+const RECEIPT_PRINT_CFG = {width:576, pad:27, qtyW:60, priceW:106, totalW:122, f:{title:29, sub:21, th:24, td:24, tot:27, foot:27, date:21}}; // 80mm paper = 576 dots (same layout as preview, scaled)
 
 async function ensureFontsReady(){
   try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(e){}
@@ -1533,21 +1550,15 @@ function uint8ToBase64(bytes){
   return btoa(binary);
 }
 async function printViaRawBT(sale){
-  const el = $('#printReceipt');
-  el.innerHTML = printReceiptHTML(sale);
-  el.classList.add('rawbt-mode');
-  el.style.cssText = 'display:block; position:fixed; left:-9999px; top:0; width:576px; background:#fff; color:#000; padding:16px;';
-  await new Promise(res=>setTimeout(res,60));
   try{
-    const canvas = await html2canvas(el, {backgroundColor:'#fff', scale:1});
+    await ensureFontsReady();
+    const canvas = drawReceiptCanvas(sale, RECEIPT_PRINT_CFG);
     const bytes = buildEscPosFromCanvas(canvas);
     const b64 = uint8ToBase64(bytes);
     window.location.href = 'intent:base64,'+b64+'#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
   }catch(e){
     alert('Print ပို့ရာတွင် အမှားရှိပါသည်။ RawBT app ကို install ထားပြီး AP-P80F ကို RawBT ထဲက printer စာရင်းမှာ ရွေးထားကြောင်း စစ်ပေးပါ။');
   }
-  el.classList.remove('rawbt-mode');
-  el.style.cssText = '';
 }
 $('#receiptPrint').addEventListener('click', ()=>{ if(lastSale) printViaRawBT(lastSale); });
 $('#receiptClose').addEventListener('click', ()=>$('#receiptOverlay').classList.remove('show'));
