@@ -203,7 +203,7 @@ nav button.active{color:var(--teal);}
 #printReceipt.rawbt-mode th:first-child, #printReceipt.rawbt-mode td:first-child{width:34%;}
 #printReceipt.rawbt-mode .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:14px; font-size:32px;}
 #printReceipt.rawbt-mode .foot{text-align:center; font-size:22px; margin-top:18px; line-height:1.6; font-weight:700;}
-#printReceipt.rawbt-mode .foot-date{text-align:left; font-size:20px; margin-top:8px; font-weight:700;}
+#printReceipt.rawbt-mode .foot-date{text-align:right; font-size:20px; margin-top:8px; font-weight:700;}
 @media print{
   body *{visibility:hidden;}
   #printReceipt, #printReceipt *{visibility:visible;}
@@ -218,7 +218,7 @@ nav button.active{color:var(--teal);}
   #printReceipt td{padding:4px 1px; border-bottom:1px dashed #777; font-weight:700;}
   #printReceipt .tot{display:flex; justify-content:space-between; font-weight:700; margin-top:8px; font-size:16px;}
   #printReceipt .foot{text-align:center; font-size:13px; margin-top:10px; font-weight:700;}
-  #printReceipt .foot-date{text-align:left; font-size:13px; margin-top:4px; font-weight:700;}
+  #printReceipt .foot-date{text-align:right; font-size:13px; margin-top:4px; font-weight:700;}
   @page{ size: 80mm auto; margin:0; }
 }
 </style>
@@ -1394,7 +1394,7 @@ function drawReceipt(ctx, sale, r, width){
 
   y += 8*s;
   wrapped(r.thanks, 18, 'center', '#333');
-  wrapped(r.dateStr, 13, 'left', '#333');
+  wrapped(r.dateStr, 13, 'right', '#333');
   return y + pad;
 }
 
