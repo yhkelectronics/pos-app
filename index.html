@@ -607,7 +607,11 @@ function showLicenseBlocked(reason){
     'no-license': '⚠️ အကောင့် စတင်၍မရပါ'
   };
   $('#licenseBlockTitle').textContent = titles[reason] || titles['no-license'];
-  $('#licenseBlockMsg').innerHTML = `ဆက်သုံးလိုပါက ဆိုင်ပိုင်ရှင်ကို ဆက်သွယ်ပါ —<br><b>${esc(OWNER_EMAIL)}</b>`;
+  $('#licenseBlockMsg').innerHTML = `ဆက်သုံးလိုပါက ဆိုင်ပိုင်ရှင်ကို ဆက်သွယ်ပါ —<br><b>${esc(OWNER_EMAIL)}</b>
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px; align-items:stretch;">
+      <a href="viber://chat?number=%2B959799845414" style="display:block; padding:10px; border-radius:10px; background:#7360F2; color:#fff; text-decoration:none; font-weight:700;">📞 Viber — 09799845414</a>
+      <a href="https://t.me/mylifesmmh" target="_blank" rel="noopener" style="display:block; padding:10px; border-radius:10px; background:#229ED9; color:#fff; text-decoration:none; font-weight:700;">✈️ Telegram — t.me/mylifesmmh</a>
+    </div>`;
   $('#licenseBlockView').style.display = 'block';
   $('#loginOverlay').classList.add('show');
 }
@@ -1220,8 +1224,6 @@ async function permanentlyDeletePeriod(id){
   if(!p) return;
   const list = periodSalesList(p);
   if(!confirm(`⚠️ "${p.label}" ကာလရဲ့ ရောင်းချမှု ${list.length} ခုကို အပြီးဖျက်မှာပါ။\nဒါက ပြန်ရနိုင်မှာ မဟုတ်ပါ — သေချာလား?`)) return;
-  const typed = prompt('သေချာကြောင်းအတည်ပြုဖို့ "ဖျက်မည်" လို့ ဒီအောက်မှာ ရိုက်ထည့်ပါ:');
-  if(typed !== 'ဖျက်မည်'){ alert('စာမကိုက်ညီလို့ ပယ်ဖျက်လိုက်ပါတယ် — ဘာမှ ပျက်မသွားပါ'); return; }
   const idsToDelete = new Set(list.map(s=>s.id));
   sales = sales.filter(s=>!idsToDelete.has(s.id));
   periods = periods.filter(x=>x.id!==id);
