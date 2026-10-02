@@ -1238,7 +1238,7 @@ function receiptHtmlParts(sale){
   if(c.address) custLines.push('Address: '+c.address);
   const rows = sale.items.map(i=>`<tr><td>${esc(i.name)}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmt(i.price)}</td><td style="text-align:right">${fmt(i.price*i.qty)}</td></tr>`).join('');
   const thanks = localStorage.getItem(LS_THANKS) || DEFAULT_THANKS;
-  return {shop, contact:[addr,phone].filter(Boolean).join(' · '), custHtml:custLines.map(esc).join('<br>'), rows, dateStr:new Date(sale.date).toLocaleString('my-MM'), thanks};
+  return {shop, addr, phone, custHtml:custLines.map(esc).join('<br>'), rows, dateStr:new Date(sale.date).toLocaleString('my-MM'), thanks};
 }
 
 // ---- Fast receipt renderer: Canvas 2D directly (no html2canvas) ----
@@ -1294,7 +1294,7 @@ function receiptData(sale){
   const phone = localStorage.getItem(LS_PHONE) || '';
   return {
     shop: localStorage.getItem(LS_SHOP) || 'ကျွန်တော့်ဆိုင်',
-    contact: [addr, phone].filter(Boolean).join(' · '),
+    addr, phone,
     custLines,
     thanks: localStorage.getItem(LS_THANKS) || DEFAULT_THANKS,
     dateStr: new Date(sale.date).toLocaleString('my-MM')
@@ -1323,8 +1323,10 @@ function drawReceipt(ctx, sale, r, width){
   }
 
   wrapped(r.shop, 19, 'center');
-  if(r.contact) wrapped(r.contact, 14, 'center', '#444');
+  if(r.addr) wrapped(r.addr, 14, 'center', '#444');
+  if(r.phone) wrapped(r.phone, 14, 'center', '#444');
   if(r.custLines.length){
+    y += fs(12);
     r.custLines.forEach(t=>wrapped(t, 14, 'left', '#333'));
   }
   y += fs(8);
@@ -1446,8 +1448,9 @@ function printReceiptHTML(sale){
   const r = receiptHtmlParts(sale);
   return `
     <h3>${esc(r.shop)}</h3>
-    ${r.contact?`<div class="sub">${esc(r.contact)}</div>`:''}
-    ${r.custHtml?`<div class="sub" style="text-align:left">${r.custHtml}</div>`:''}
+    ${r.addr?`<div class="sub" style="margin-bottom:2px">${esc(r.addr)}</div>`:''}
+    ${r.phone?`<div class="sub">${esc(r.phone)}</div>`:''}
+    ${r.custHtml?`<div class="sub" style="text-align:left; margin-top:12px">${r.custHtml}</div>`:''}
     <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${r.rows}</tbody></table>
     <div class="tot"><span>Total</span><span>${fmt(sale.total)} ကျပ်</span></div>
