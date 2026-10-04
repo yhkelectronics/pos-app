@@ -372,8 +372,54 @@ nav button.active{color:var(--teal);}
         <div id="licenseBlockTitle" style="font-size:17px; font-weight:700; color:var(--danger); margin-bottom:8px;"></div>
         <div id="licenseBlockMsg"></div>
       </div>
+      <div class="actions"><button class="btn-primary" id="licenseRenewBtn">💎 သက်တမ်းတိုးရန်</button></div>
       <div class="actions"><button class="btn-ghost" id="licenseLogoutBtn">Logout</button></div>
     </div>
+  </div>
+</div>
+
+<!-- Trial / Premium promo -->
+<div class="overlay" id="promoOverlay" style="z-index:60; align-items:center;">
+  <div class="sheet" style="border-radius:16px; margin:0 14px; max-width:400px;">
+    <h2 style="text-align:center;">🎉 ကြိုဆိုပါတယ်</h2>
+    <div id="promoTrialMsg" style="text-align:center; font-weight:700; font-size:16px; margin-bottom:12px;"></div>
+    <div style="border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;">
+      <div style="font-weight:700; margin-bottom:8px;">💎 Premium ဝယ်သုံးလိုပါက</div>
+      <div class="row"><span>၃ လ</span><span class="v">5,000 ကျပ်</span></div>
+      <div class="row"><span>၆ လ</span><span class="v">10,000 ကျပ်</span></div>
+      <div class="row"><span>၁၂ လ</span><span class="v">15,000 ကျပ်</span></div>
+    </div>
+    <div class="actions"><button class="btn-primary" id="promoRenewBtn">💎 သက်တမ်းတိုးရန်</button></div>
+    <div class="actions"><button class="btn-ghost" id="promoCloseBtn">ပိတ်မည်</button></div>
+  </div>
+</div>
+
+<!-- Renew / payment -->
+<div class="overlay" id="payOverlay" style="z-index:60;">
+  <div class="sheet">
+    <h2>💎 သက်တမ်းတိုးရန်</h2>
+    <div style="font-size:13px; color:var(--sub); margin-bottom:10px;">၃ လ — 5,000 ကျပ် · ၆ လ — 10,000 ကျပ် · ၁၂ လ — 15,000 ကျပ်<br>ငွေလွှဲမည့် နည်းလမ်းကို ရွေးပါ</div>
+    <div class="actions" style="margin-bottom:10px;">
+      <button class="btn-ghost" id="payKpayBtn">KPay</button>
+      <button class="btn-ghost" id="payWaveBtn">Wave Pay</button>
+    </div>
+    <div id="payInfoBox" style="display:none; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;">
+      <div id="payInfoTitle" style="font-weight:700; margin-bottom:6px;"></div>
+      <div class="row"><span>Account</span><span class="v" id="payInfoAcc"></span></div>
+      <div class="row"><span>Name</span><span class="v" id="payInfoName"></span></div>
+      <button class="link-btn" id="payCopyBtn">📋 Account နံပါတ် Copy</button>
+    </div>
+    <div id="payFormBox" style="display:none;">
+      <div style="font-size:13px; color:var(--sub); margin-bottom:8px;">ငွေလွှဲပြီးပါက အောက်ပါအချက်များ ဖြည့်ပြီး ပို့ပါ</div>
+      <div class="field"><label>ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး</label><input id="payLast5" maxlength="5" inputmode="numeric" placeholder="12345"></div>
+      <div class="field"><label>ငွေပမာဏ (ကျပ်)</label><input id="payAmount" type="number" inputmode="numeric" placeholder="5000"></div>
+      <div class="field"><label>သက်တမ်း</label>
+        <select id="payMonths" class="search"><option value="3">၃ လ</option><option value="6">၆ လ</option><option value="12">၁၂ လ</option></select>
+      </div>
+      <div class="login-err" id="payErr"></div>
+      <div class="actions"><button class="btn-primary" id="paySubmitBtn">ပို့မည်</button></div>
+    </div>
+    <div class="actions"><button class="btn-ghost" id="payCloseBtn">ပိတ်မည်</button></div>
   </div>
 </div>
 
@@ -381,6 +427,9 @@ nav button.active{color:var(--teal);}
 <div class="overlay" id="adminOverlay">
   <div class="sheet" style="max-width:520px;">
     <h2>👑 Admin — Customer အကောင့်များ</h2>
+    <div class="section-label" style="margin-bottom:6px;">💰 ငွေသွင်းထားသော User များ</div>
+    <div id="adminPayments" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
+    <div class="section-label" style="margin-bottom:6px;">👥 Customer အကောင့်များ</div>
     <div class="empty" id="adminLoading">Loading...</div>
     <div id="adminList" style="display:flex; flex-direction:column; gap:10px;"></div>
     <div class="actions" style="margin-top:14px;">
@@ -404,6 +453,7 @@ nav button.active{color:var(--teal);}
     <div id="accountBox" style="display:none; margin-top:18px;">
       <div class="section-label">👤 အကောင့်</div>
       <div class="row"><span id="accountEmail" style="word-break:break-all;"></span></div>
+      <div class="actions" id="renewBox" style="display:none;"><button class="btn-primary" id="renewBtn">💎 သက်တမ်းတိုးရန်</button></div>
       <div class="actions"><button class="btn-danger" id="logoutBtn">Logout</button></div>
     </div>
 
@@ -574,8 +624,8 @@ function subscribeCloud(){
 }
 
 const OWNER_EMAIL = 'yhkelectronics@gmail.com';
-const TRIAL_DAYS = 14;
-const PLAN_LABEL = {trial:'Trial', monthly:'Monthly', yearly:'Yearly'};
+const TRIAL_DAYS = 7;
+const PLAN_LABEL = {trial:'Trial', monthly:'Monthly', yearly:'Yearly', premium:'Premium'};
 // validUntil is stored as a Firestore Timestamp so the security rule can check it
 // against the server clock (request.time) — a client can't forge a server timestamp,
 // unlike a plain ISO string which a modified client could set to any value it wants.
@@ -614,6 +664,7 @@ function showLicenseBlocked(reason){
       <a href="viber://chat?number=%2B959799845414" style="display:block; padding:10px; border-radius:10px; background:#7360F2; color:#fff; text-decoration:none; font-weight:700;">📞 Viber — 09799845414</a>
       <a href="https://t.me/mylifesmmh" target="_blank" rel="noopener" style="display:block; padding:10px; border-radius:10px; background:#229ED9; color:#fff; text-decoration:none; font-weight:700;">✈️ Telegram — t.me/mylifesmmh</a>
     </div>`;
+  $('#licenseRenewBtn').style.display = reason==='suspended' ? 'none' : 'block';
   $('#licenseBlockView').style.display = 'block';
   $('#loginOverlay').classList.add('show');
 }
@@ -634,6 +685,8 @@ async function onCloudLogin(user){
   const isOwner = (user.email||'').toLowerCase() === OWNER_EMAIL.toLowerCase();
   $('#adminBtn').style.display = isOwner ? 'block' : 'none';
 
+  let promoDays = 0;
+  $('#renewBox').style.display = isOwner ? 'none' : 'flex';
   if(!isOwner){
     const licRef = fb.db.collection('licenses').doc(user.uid);
     let licSnap;
@@ -648,6 +701,7 @@ async function onCloudLogin(user){
     }
     const access = computeAccess(lic);
     if(!access.ok){ showLicenseBlocked(access.reason); return; }
+    if(lic.plan==='trial') promoDays = Math.max(1, Math.ceil((toMillis(lic.validUntil)-Date.now())/86400000));
   }
 
   const base = fb.db.collection('users').doc(user.uid);
@@ -673,6 +727,7 @@ async function onCloudLogin(user){
   }
   subscribeCloud();
   $('#loginOverlay').classList.remove('show');
+  if(promoDays) openPromo(promoDays);
 }
 
 function initFirebase(){
@@ -778,6 +833,7 @@ function licBadge(lic){
 }
 async function openAdminPanel(){
   $('#adminOverlay').classList.add('show');
+  loadAdminPayments();
   $('#adminLoading').style.display = 'block';
   $('#adminList').innerHTML = '';
   try{
@@ -794,6 +850,7 @@ async function openAdminPanel(){
             <option value="trial" ${lic.plan==='trial'?'selected':''}>Trial</option>
             <option value="monthly" ${lic.plan==='monthly'?'selected':''}>Monthly</option>
             <option value="yearly" ${lic.plan==='yearly'?'selected':''}>Yearly</option>
+            <option value="premium" ${lic.plan==='premium'?'selected':''}>Premium</option>
           </select>
           <input type="date" class="a-date" value="${dateVal}">
           <button class="a-save" style="background:var(--teal); color:#fff; border:none;">သိမ်းမည်</button>
@@ -820,6 +877,127 @@ async function saveLicenseRow(row){
   await fb.db.collection('licenses').doc(uid).set({plan, validUntil}, {merge:true});
   await openAdminPanel();
 }
+
+// ---- Premium renewal: promo + KPay / Wave Pay payment submission ----
+const PAY_INFO = {
+  kpay: {label:'KPay',     acc:'09760606969', name:'Ye Htet Kyaw'},
+  wave: {label:'Wave Pay', acc:'09760606969', name:'New Ni Win'}
+};
+let payMethod = '';
+function openPromo(days){
+  $('#promoTrialMsg').textContent = days >= TRIAL_DAYS
+    ? `အခမဲ့ ${TRIAL_DAYS} ရက် အသုံးပြုခွင့် ရရှိပါပြီ`
+    : `အခမဲ့ အသုံးပြုခွင့် ကျန်ရှိ ${days} ရက်`;
+  $('#promoOverlay').classList.add('show');
+}
+function openPay(){
+  payMethod = '';
+  $('#payInfoBox').style.display = 'none';
+  $('#payFormBox').style.display = 'none';
+  $('#payErr').textContent = '';
+  $('#payLast5').value = ''; $('#payAmount').value = 5000; $('#payMonths').value = '3';
+  $('#promoOverlay').classList.remove('show');
+  $('#payOverlay').classList.add('show');
+}
+function choosePay(m){
+  payMethod = m;
+  const p = PAY_INFO[m];
+  $('#payInfoTitle').textContent = p.label;
+  $('#payInfoAcc').textContent = p.acc;
+  $('#payInfoName').textContent = p.name;
+  $('#payInfoBox').style.display = 'block';
+  $('#payFormBox').style.display = 'block';
+  $('#payErr').textContent = '';
+}
+$('#promoRenewBtn').addEventListener('click', openPay);
+$('#promoCloseBtn').addEventListener('click', ()=>$('#promoOverlay').classList.remove('show'));
+$('#renewBtn').addEventListener('click', ()=>{ $('#shopOverlay').classList.remove('show'); openPay(); });
+$('#licenseRenewBtn').addEventListener('click', openPay);
+$('#payKpayBtn').addEventListener('click', ()=>choosePay('kpay'));
+$('#payWaveBtn').addEventListener('click', ()=>choosePay('wave'));
+$('#payCloseBtn').addEventListener('click', ()=>$('#payOverlay').classList.remove('show'));
+$('#payCopyBtn').addEventListener('click', async ()=>{
+  const t = $('#payInfoAcc').textContent;
+  try{ await navigator.clipboard.writeText(t); $('#payCopyBtn').textContent = '✅ Copy ပြီးပါပြီ'; }
+  catch(e){ $('#payCopyBtn').textContent = t; }
+  setTimeout(()=>{ $('#payCopyBtn').textContent = '📋 Account နံပါတ် Copy'; }, 2000);
+});
+$('#payMonths').addEventListener('change', ()=>{
+  const m = $('#payMonths').value;
+  if(m==='3') $('#payAmount').value = 5000;
+  else if(m==='6') $('#payAmount').value = 10000;
+  else if(m==='12') $('#payAmount').value = 15000;
+});
+$('#paySubmitBtn').addEventListener('click', async ()=>{
+  const u = fb && fb.auth && fb.auth.currentUser;
+  const last5 = $('#payLast5').value.trim();
+  const amount = Number($('#payAmount').value);
+  const months = Number($('#payMonths').value);
+  if(!u){ $('#payErr').textContent = 'Login ပြန်ဝင်ပါ'; return; }
+  if(!payMethod){ $('#payErr').textContent = 'KPay / Wave Pay ကို ရွေးပါ'; return; }
+  if(last5.length !== 5){ $('#payErr').textContent = 'ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး ထည့်ပါ'; return; }
+  if(!amount || amount <= 0){ $('#payErr').textContent = 'ငွေပမာဏ ထည့်ပါ'; return; }
+  $('#paySubmitBtn').disabled = true;
+  try{
+    await fb.db.collection('payments').add({
+      uid: u.uid, email: u.email || '', method: payMethod, last5, amount, months,
+      status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    $('#payOverlay').classList.remove('show');
+    alert('ပို့ပြီးပါပြီ ✅ Admin စစ်ဆေးပြီးပါက သက်တမ်းတိုးပေးပါမယ်');
+  }catch(e){
+    $('#payErr').textContent = 'ပို့မရပါ — Internet စစ်ပြီး ပြန်စမ်းပါ';
+  }
+  $('#paySubmitBtn').disabled = false;
+});
+
+// Admin: list of payments submitted by users
+async function loadAdminPayments(){
+  const box = $('#adminPayments');
+  box.innerHTML = '<div class="empty" style="padding:10px;">Loading...</div>';
+  try{
+    const snap = await fb.db.collection('payments').orderBy('createdAt','desc').limit(100).get();
+    if(snap.empty){ box.innerHTML = '<div class="empty" style="padding:10px;">ငွေသွင်းထားသူ မရှိသေးပါ</div>'; return; }
+    const docs = snap.docs.slice().sort((a,b)=> (a.data().status==='pending'?0:1) - (b.data().status==='pending'?0:1));
+    box.innerHTML = docs.map(d=>{
+      const p = d.data();
+      const st = p.status==='approved' ? '<span class="admin-badge active">Approved</span>'
+               : p.status==='rejected' ? '<span class="admin-badge expired">Rejected</span>'
+               : '<span class="admin-badge trial">Pending</span>';
+      const btns = p.status==='pending' ? `<div class="arow">
+          <button class="p-approve" style="background:var(--teal); color:#fff; border:none;">✅ Approve</button>
+          <button class="p-reject" style="border-color:var(--danger); color:var(--danger);">Reject</button>
+        </div>` : '';
+      return `<div class="admin-row" data-pid="${d.id}" data-uid="${esc(p.uid)}" data-months="${Number(p.months)||0}">
+        <div class="em">${esc(p.email||p.uid)} ${st}</div>
+        <div style="font-size:13px;">${esc((PAY_INFO[p.method]||{}).label||p.method||'')} · ID …${esc(p.last5||'')} · ${fmt(Number(p.amount)||0)} ကျပ် · ${Number(p.months)||0} လ</div>
+        <div style="font-size:12px; color:var(--sub);">${fmtDate(p.createdAt)}</div>
+        ${btns}
+      </div>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML = '<div class="empty" style="padding:10px;">Load မရပါ — Security Rules ထဲမှာ payments collection ခွင့်ပြုချက် စစ်ပါ</div>';
+  }
+}
+$('#adminPayments').addEventListener('click', async e=>{
+  const row = e.target.closest('.admin-row'); if(!row) return;
+  const pid = row.dataset.pid, uid = row.dataset.uid, months = Number(row.dataset.months);
+  try{
+    if(e.target.classList.contains('p-approve')){
+      if(!months) return;
+      const licRef = fb.db.collection('licenses').doc(uid);
+      const snap = await licRef.get();
+      const cur = snap.exists ? toMillis(snap.data().validUntil) : 0;
+      const d = new Date(Math.max(cur, Date.now()));
+      d.setMonth(d.getMonth() + months);
+      await licRef.set({plan:'premium', validUntil: tsFromDate(d), suspended:false}, {merge:true});
+      await fb.db.collection('payments').doc(pid).set({status:'approved', approvedAt: firebase.firestore.FieldValue.serverTimestamp()}, {merge:true});
+    } else if(e.target.classList.contains('p-reject')){
+      await fb.db.collection('payments').doc(pid).set({status:'rejected'}, {merge:true});
+    } else return;
+    await openAdminPanel();
+  }catch(err){ alert('လုပ်ဆောင်၍မရပါ — Security Rules စစ်ပါ'); }
+});
 $('#adminBtn').addEventListener('click', openAdminPanel);
 $('#adminClose').addEventListener('click', ()=>$('#adminOverlay').classList.remove('show'));
 $('#adminList').addEventListener('click', async e=>{
