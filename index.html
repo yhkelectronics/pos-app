@@ -1327,28 +1327,35 @@ function wrapCanvasText(ctx, text, maxWidth){
   if(line) lines.push(line);
   return lines.length ? lines : [text];
 }
+// Myanmar text (shop name, item names, contact, thank-you) uses Padauk.
+// Numbers and plain English labels (Qty/Price/Total, dates, amounts) use a plain system
+// sans-serif — this is what makes prices look like an ordinary, familiar receipt font
+// instead of the heavier Myanmar display font. Body rows are normal weight; only the
+// shop name, column headers and the final Total Amount are bold, for emphasis.
+const MM_FONT = 'Padauk';
+const NUM_FONT = 'Arial, Helvetica, sans-serif';
 function drawReceiptCanvas(sale, cfg){
   const r = receiptData(sale);
   const measCanvas = document.createElement('canvas');
   const mctx = measCanvas.getContext('2d');
   const nameColW = cfg.width - cfg.pad*2 - cfg.qtyW - cfg.priceW - cfg.totalW;
-  mctx.font = `700 ${cfg.f.td}px Padauk`;
+  mctx.font = `400 ${cfg.f.td}px ${MM_FONT}`;
   const itemLines = r.items.map(it=>({it, lines: wrapCanvasText(mctx, it.name, nameColW-6)}));
-  const lh = f => Math.round(f*1.5);
-  mctx.font = `700 ${cfg.f.sub}px Padauk`;
+  const lh = f => Math.round(f*1.7);
+  mctx.font = `400 ${cfg.f.sub}px ${MM_FONT}`;
   const contactWrapped = [];
   r.contactLines.forEach(t=>wrapCanvasText(mctx, t, cfg.width - cfg.pad*2).forEach(l=>contactWrapped.push(l)));
 
-  mctx.font = `700 ${cfg.f.foot}px Padauk`;
+  mctx.font = `700 ${cfg.f.foot}px ${MM_FONT}`;
   const thanksWrapped = wrapCanvasText(mctx, r.thanks, cfg.width - cfg.pad*2);
 
   let y = cfg.pad;
   y += lh(cfg.f.title);
   y += lh(cfg.f.sub) * contactWrapped.length;
   y += lh(cfg.f.sub) * r.customerLines.length;
-  y += 8 + lh(cfg.f.th) + 10;
-  itemLines.forEach(({lines})=> y += lh(cfg.f.td)*Math.max(1,lines.length) + 10);
-  y += 8 + lh(cfg.f.td)*2 + 14 + lh(cfg.f.tot) + 10;
+  y += 10 + lh(cfg.f.th) + 12;
+  itemLines.forEach(({lines})=> y += lh(cfg.f.td)*Math.max(1,lines.length) + 12);
+  y += 10 + lh(cfg.f.td)*2 + 16 + lh(cfg.f.tot) + 12;
   y += lh(cfg.f.foot) * thanksWrapped.length + lh(cfg.f.date) + cfg.pad;
 
   const canvas = document.createElement('canvas');
@@ -1365,78 +1372,79 @@ function drawReceiptCanvas(sale, cfg){
   };
   let cy = cfg.pad;
 
-  ctx.font = `700 ${cfg.f.title}px Padauk`; ctx.textAlign = 'center';
+  ctx.font = `700 ${cfg.f.title}px ${MM_FONT}`; ctx.textAlign = 'center';
   cy += cfg.f.title; ctx.fillText(r.shop, cfg.width/2, cy); cy += lh(cfg.f.title) - cfg.f.title;
 
   if(contactWrapped.length){
-    ctx.font = `700 ${cfg.f.sub}px Padauk`; ctx.textAlign = 'center';
+    ctx.font = `400 ${cfg.f.sub}px ${MM_FONT}`; ctx.textAlign = 'center';
     contactWrapped.forEach(line=>{ cy += cfg.f.sub; ctx.fillText(line, cfg.width/2, cy); cy += lh(cfg.f.sub) - cfg.f.sub; });
   }
   if(r.customerLines.length){
-    ctx.font = `700 ${cfg.f.sub}px Padauk`; ctx.textAlign = 'left';
+    ctx.font = `400 ${cfg.f.sub}px ${MM_FONT}`; ctx.textAlign = 'left';
     r.customerLines.forEach(line=>{ cy += cfg.f.sub; ctx.fillText(line, cfg.pad, cy); cy += lh(cfg.f.sub) - cfg.f.sub; });
   }
-  cy += 8;
+  cy += 10;
 
-  ctx.font = `700 ${cfg.f.th}px Padauk`;
+  ctx.font = `700 ${cfg.f.th}px ${NUM_FONT}`;
   cy += cfg.f.th;
   ctx.textAlign='left'; ctx.fillText('Description', colX.name, cy);
   ctx.textAlign='center'; ctx.fillText('Qty', colX.qty + cfg.qtyW/2, cy);
   ctx.textAlign='right'; ctx.fillText('Price', colX.price + cfg.priceW, cy);
   ctx.fillText('Total', colX.total + cfg.totalW, cy);
-  cy += 6;
+  cy += 8;
   ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cfg.width/280);
   ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
-  cy += 10;
+  cy += 12;
 
-  ctx.font = `700 ${cfg.f.td}px Padauk`;
   itemLines.forEach(({it,lines})=>{
     lines.forEach((ln,i)=>{
       cy += cfg.f.td;
+      ctx.font = `400 ${cfg.f.td}px ${MM_FONT}`;
       ctx.textAlign='left'; ctx.fillText(ln, colX.name, cy);
       if(i===0){
+        ctx.font = `400 ${cfg.f.td}px ${NUM_FONT}`;
         ctx.textAlign='center'; ctx.fillText(String(it.qty), colX.qty + cfg.qtyW/2, cy);
         ctx.textAlign='right'; ctx.fillText(fmt(it.price), colX.price + cfg.priceW, cy);
         ctx.fillText(fmt(it.lineTotal), colX.total + cfg.totalW, cy);
       }
       cy += lh(cfg.f.td) - cfg.f.td;
     });
-    cy += 4;
+    cy += 5;
     ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
     ctx.setLineDash([]);
-    cy += 6;
+    cy += 8;
   });
   cy += 8;
 
-  ctx.font = `700 ${cfg.f.td}px Padauk`;
+  ctx.font = `400 ${cfg.f.td}px ${NUM_FONT}`;
   cy += cfg.f.td;
   ctx.textAlign='left'; ctx.fillText('Total', cfg.pad, cy);
-  ctx.textAlign='right'; ctx.fillText(fmt(r.subtotal)+' ကျပ်', cfg.width-cfg.pad, cy);
+  ctx.textAlign='right'; ctx.fillText(fmt(r.subtotal)+' Ks', cfg.width-cfg.pad, cy);
   cy += lh(cfg.f.td) - cfg.f.td;
   cy += cfg.f.td;
   ctx.textAlign='left'; ctx.fillText('Discount', cfg.pad, cy);
-  ctx.textAlign='right'; ctx.fillText((r.discount>0?'-':'')+fmt(r.discount)+' ကျပ်', cfg.width-cfg.pad, cy);
-  cy += lh(cfg.f.td) - cfg.f.td + 4;
+  ctx.textAlign='right'; ctx.fillText((r.discount>0?'-':'')+fmt(r.discount)+' Ks', cfg.width-cfg.pad, cy);
+  cy += lh(cfg.f.td) - cfg.f.td + 6;
   ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cfg.width/280); ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
-  cy += 10;
+  cy += 14;
 
-  ctx.font = `700 ${cfg.f.tot}px Padauk`;
+  ctx.font = `700 ${cfg.f.tot}px ${NUM_FONT}`;
   cy += cfg.f.tot;
   ctx.textAlign='left'; ctx.fillText('Total Amount', cfg.pad, cy);
-  ctx.textAlign='right'; ctx.fillText(fmt(r.total)+' ကျပ်', cfg.width-cfg.pad, cy);
-  cy += lh(cfg.f.tot) - cfg.f.tot + 10;
+  ctx.textAlign='right'; ctx.fillText(fmt(r.total)+' Ks', cfg.width-cfg.pad, cy);
+  cy += lh(cfg.f.tot) - cfg.f.tot + 12;
 
-  ctx.font = `700 ${cfg.f.foot}px Padauk`; ctx.textAlign = 'center';
+  ctx.font = `700 ${cfg.f.foot}px ${MM_FONT}`; ctx.textAlign = 'center';
   thanksWrapped.forEach(t=>{ cy += cfg.f.foot; ctx.fillText(t, cfg.width/2, cy); cy += lh(cfg.f.foot) - cfg.f.foot; });
-  ctx.font = `700 ${cfg.f.date}px Padauk`; ctx.textAlign = 'right';
+  ctx.font = `400 ${cfg.f.date}px ${NUM_FONT}`; ctx.textAlign = 'right';
   cy += cfg.f.date; ctx.fillText(r.dateStr, cfg.width-cfg.pad, cy);
 
   return canvas;
 }
-const RECEIPT_IMAGE_CFG = {width:380, pad:18, qtyW:40, priceW:70, totalW:80, f:{title:19, sub:14, th:16, td:16, tot:18, foot:18, date:14}};
-const RECEIPT_PRINT_CFG = {width:576, pad:27, qtyW:60, priceW:106, totalW:122, f:{title:29, sub:21, th:24, td:24, tot:27, foot:27, date:21}}; // 80mm paper = 576 dots (same layout as preview, scaled)
+const RECEIPT_IMAGE_CFG = {width:400, pad:20, qtyW:44, priceW:76, totalW:86, f:{title:21, sub:15, th:16, td:17, tot:19, foot:18, date:14}};
+const RECEIPT_PRINT_CFG = {width:576, pad:24, qtyW:60, priceW:120, totalW:136, f:{title:38, sub:26, th:26, td:28, tot:34, foot:30, date:22}}; // 80mm paper = 576 dots at 203dpi
 
 async function ensureFontsReady(){
   try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(e){}
@@ -1525,7 +1533,7 @@ function buildEscPosFromCanvas(canvas){
         const idx = (y*w+x)*4;
         const a = img[idx+3];
         const gray = img[idx]*0.299 + img[idx+1]*0.587 + img[idx+2]*0.114;
-        if(a>10 && gray<200){
+        if(a>40 && gray<140){
           const bi = ry*bytesPerLine + (x>>3);
           bitmap[bi] |= (1<<(7-(x%8)));
         }
