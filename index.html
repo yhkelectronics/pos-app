@@ -1396,7 +1396,7 @@ function drawReceiptCanvas(sale, cfg){
   ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
   cy += 12;
 
-  itemLines.forEach(({it,lines})=>{
+  itemLines.forEach(({it,lines},itemIdx)=>{
     lines.forEach((ln,i)=>{
       cy += cfg.f.td;
       ctx.font = `400 ${cfg.f.td}px ${MM_FONT}`;
@@ -1410,7 +1410,9 @@ function drawReceiptCanvas(sale, cfg){
       cy += lh(cfg.f.td) - cfg.f.td;
     });
     cy += 5;
-    ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    const isLastItem = itemIdx === itemLines.length-1;
+    if(isLastItem){ ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cfg.width/280); ctx.setLineDash([]); }
+    else { ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.setLineDash([3,3]); }
     ctx.beginPath(); ctx.moveTo(cfg.pad,cy); ctx.lineTo(cfg.width-cfg.pad,cy); ctx.stroke();
     ctx.setLineDash([]);
     cy += 8;
@@ -1495,7 +1497,7 @@ function printReceiptHTML(sale){
     ${r.custHtml?`<div class="sub" style="text-align:left">${r.custHtml}</div>`:''}
     <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${r.rows}</tbody></table>
-    <div class="tot" style="margin-top:10px;font-size:inherit"><span>Total</span><span>${fmt(sale.subtotal!=null?sale.subtotal:sale.total)} ကျပ်</span></div>
+    <div class="tot" style="margin-top:0;border-top:2px solid #000;padding-top:6px;font-size:inherit"><span>Total</span><span>${fmt(sale.subtotal!=null?sale.subtotal:sale.total)} ကျပ်</span></div>
     <div class="tot" style="margin-top:4px;font-size:inherit"><span>Discount</span><span>${(sale.discount>0?'-':'')+fmt(sale.discount||0)} ကျပ်</span></div>
     <div class="tot" style="border-top:2px solid #000;padding-top:6px"><span>Total Amount</span><span>${fmt(sale.total)} ကျပ်</span></div>
     <div class="foot">${esc(r.thanks)}</div>
